@@ -56,9 +56,13 @@ It installs a launchd job (`local.hex-upsert`) that runs Sundays at 04:00:
 - By default it sends a notification when safe corrections are ready, and the next Claude
   session offers to apply them. With `schedule --auto-apply` it applies replacements itself
   (never recognition hints), relaunches Hex, rolls back if Hex won't start, and notifies you.
-- If labelling fails, for instance because your Claude login expired, it notifies you.
+- Your normal `claude` login expires every few weeks. To keep the job running, run
+  `schedule.sh --store-token` once. It runs `claude setup-token` (a long-lived subscription
+  token), asks you to paste the token into a hidden prompt, checks it with one tiny call, and
+  stores it in your login Keychain, not in the launchd file. The job reads it at run time.
+- If labelling fails, for instance because a login or token expired, it notifies you.
 
-Run data stays in `~/Library/Application Support/hex-upsert/`. Remove the job with
+Run data stays in `~/Library/Application Support/hex-upsert/`. Remove the job, and the Keychain token, with
 `schedule.sh --uninstall`. Re-run `schedule.sh` after updating: launchd can't read
 `~/Documents`, so the job runs a copy of the scripts.
 

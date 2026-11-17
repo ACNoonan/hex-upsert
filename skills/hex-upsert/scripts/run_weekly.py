@@ -36,6 +36,13 @@ def py(script, *args):
     return r.stdout
 
 
+def keychain_token():
+    """A `claude setup-token` token stored by schedule.sh --store-token. It outlives the normal login."""
+    r = subprocess.run(["security", "find-generic-password", "-s", "hex-upsert", "-a", "claude-oauth-token", "-w"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
 def notify(title, text):
     text = text.replace('"', "'")[:240]
     subprocess.run(["osascript", "-e", f'display notification "{text}" with title "{title}"'], capture_output=True)
@@ -71,6 +78,11 @@ def main():
     os.makedirs(STATE, exist_ok=True)
     open(os.path.join(STATE, "last_run"), "w").write(str(int(time.time())))
 
+    token = keychain_token()
+    if token:
+        os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = token  # label.py passes this one through
+    print("auth: " + ("setup-token from Keychain" if token else "claude login"))
+
     w = os.path.join(STATE, "runs", stamp)
     os.makedirs(w, exist_ok=True)
     cand, labels, plan = (os.path.join(w, f) for f in ("candidates.json", "labels.json", "plan.json"))
@@ -80,7 +92,7 @@ def main():
     try:
         py("label.py", labels)
     except SystemExit:
-        notify("Hex upsert", "Labelling failed. Your Claude login may have expired: run claude auth login. Log: ~/Library/Logs/hex-upsert.log")
+        notify("Hex upsert", "Labelling failed. Your Claude login or setup-token may have expired: run claude auth login, or schedule.sh --store-token. Log: ~/Library/Logs/hex-upsert.log")
         raise
     py("gate.py", cand, labels, "--out", plan)
 

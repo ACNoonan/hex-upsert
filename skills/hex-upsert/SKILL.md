@@ -25,7 +25,10 @@ git repo. Persistent state lives in `~/Library/Application Support/hex-upsert/`.
   what it does: it quits Hex for a few seconds on Sunday at 04:00, it labels with
   headless `claude -p` on their Claude subscription (the script refuses API-key logins), and
   remove it with `unschedule`. Then confirm they want auto-apply, if they asked for it.
-- `unschedule`: run `sh $S/schedule.sh --uninstall`.
+- `schedule` also takes `--store-token`, to keep the job working past the normal login's expiry.
+  It's interactive (a browser sign-in, then a hidden paste), so never run it yourself or ask for
+  the token. Tell the user to run `sh $S/schedule.sh --store-token` in their own terminal.
+- `unschedule`: run `sh $S/schedule.sh --uninstall`. It also deletes the Keychain token.
 - No argument: the review below.
 
 ## Review

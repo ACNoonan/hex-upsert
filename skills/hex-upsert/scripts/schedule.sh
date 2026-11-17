@@ -3,7 +3,9 @@
 #
 #   schedule.sh                 weekly check; notifies you when safe corrections are ready
 #   schedule.sh --auto-apply    weekly check that also applies them, then notifies you
-#   schedule.sh --uninstall     remove the job
+#   schedule.sh --store-token   run `claude setup-token` and keep the token in your Keychain, so the
+#                               job keeps working when your normal `claude` login expires
+#   schedule.sh --uninstall     remove the job (and the Keychain token)
 #
 # launchd jobs can't read ~/Documents (macOS privacy protection), so the scripts are copied to
 # ~/Library/Application Support/hex-upsert/bin and run from there. Re-run after updating.
@@ -19,9 +21,40 @@ remove() {
   rm -f "$HOME/Library/LaunchAgents/$1.plist"
 }
 
+KC_SERVICE=hex-upsert
+KC_ACCOUNT=claude-oauth-token
+has_token() { security find-generic-password -s "$KC_SERVICE" -a "$KC_ACCOUNT" >/dev/null 2>&1; }
+
 if [ "$1" = "--uninstall" ]; then
   remove "$LABEL"
-  echo "removed the weekly hex-upsert job"
+  security delete-generic-password -s "$KC_SERVICE" -a "$KC_ACCOUNT" >/dev/null 2>&1 || true
+  echo "removed the weekly hex-upsert job and its Keychain token"
+  exit 0
+fi
+
+CLAUDE=$(command -v claude || echo "$HOME/.local/bin/claude")
+if [ ! -x "$CLAUDE" ]; then
+  echo "claude CLI not found on PATH or at ~/.local/bin/claude. Nothing installed." >&2
+  exit 1
+fi
+
+if [ "$1" = "--store-token" ]; then
+  echo "Step 1 of 2: claude setup-token opens your browser and prints a long-lived token (sk-ant-oat...)."
+  "$CLAUDE" setup-token
+  printf "Step 2 of 2: paste that token here (input hidden): "
+  stty -echo; read -r TOKEN; stty echo; echo
+  case "$TOKEN" in
+    sk-ant-oat*) ;;
+    *) echo "That isn't a setup-token (they start sk-ant-oat). Nothing stored." >&2; exit 1 ;;
+  esac
+  # one tiny call on the subscription to prove the token works before storing it
+  if ! env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN="$TOKEN" \
+       "$CLAUDE" -p "Reply with the word ok" --tools "" --model haiku --no-session-persistence >/dev/null 2>&1; then
+    echo "claude -p failed with that token. Nothing stored." >&2; exit 1
+  fi
+  security add-generic-password -U -s "$KC_SERVICE" -a "$KC_ACCOUNT" -l "hex-upsert: Claude setup-token" -w "$TOKEN"
+  TOKEN=""
+  echo "Stored in your login Keychain (service $KC_SERVICE). The weekly job uses it from the next run; no reinstall needed."
   exit 0
 fi
 AUTO=""
@@ -35,15 +68,10 @@ if [ ! -f "$HOME/Library/Application Support/voice-control/settings.json" ]; the
 fi
 
 # The weekly run labels with headless `claude -p` and strips API keys from its environment, so it
-# only ever runs on a Claude subscription login. Check that login exists before installing.
-CLAUDE=$(command -v claude || echo "$HOME/.local/bin/claude")
-if [ ! -x "$CLAUDE" ]; then
-  echo "claude CLI not found on PATH or at ~/.local/bin/claude. Nothing installed." >&2
-  exit 1
-fi
+# only ever runs on a Claude subscription: a `claude` login, or a setup-token in the Keychain.
 METHOD=$(env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN "$CLAUDE" auth status --json 2>/dev/null \
   | /usr/bin/python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("authMethod","") if d.get("loggedIn") else "")' 2>/dev/null || true)
-if [ "$METHOD" != "claude.ai" ]; then
+if [ "$METHOD" != "claude.ai" ] && ! has_token; then
   echo "The weekly run needs a Claude subscription login (claude auth login), so it never bills an API key." >&2
   echo "Found auth method: '${METHOD:-none}'. Nothing installed." >&2
   exit 1
