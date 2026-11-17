@@ -1,0 +1,116 @@
+{
+ "version": 1,
+ "next_id": 11,
+ "entries": [
+  {
+   "id": 1,
+   "timestamp_ms": 1793710800000,
+   "kind": "dictation",
+   "raw_text": "let's fine tune it in pie torch tonight",
+   "final_text": "let's fine tune it in pie torch tonight",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 2,
+   "timestamp_ms": 1793728800000,
+   "kind": "dictation",
+   "raw_text": "pie torch keeps running out of memory",
+   "final_text": "pie torch keeps running out of memory",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 3,
+   "timestamp_ms": 1793880000000,
+   "kind": "dictation",
+   "raw_text": "the pie torch version is pinned in the lock file",
+   "final_text": "the pie torch version is pinned in the lock file",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 4,
+   "timestamp_ms": 1794146400000,
+   "kind": "dictation",
+   "raw_text": "export it with pie torch then load it",
+   "final_text": "export it with pie torch then load it",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 5,
+   "timestamp_ms": 1793797200000,
+   "kind": "dictation",
+   "raw_text": "write the sequel query for the weekly report",
+   "final_text": "write the sequel query for the weekly report",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 6,
+   "timestamp_ms": 1793977200000,
+   "kind": "dictation",
+   "raw_text": "the sequel to that movie was better",
+   "final_text": "the sequel to that movie was better",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 7,
+   "timestamp_ms": 1794052800000,
+   "kind": "dictation",
+   "raw_text": "deploy the landing page to verse cell",
+   "final_text": "deploy the landing page to verse cell",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 8,
+   "timestamp_ms": 1793624400000,
+   "kind": "dictation",
+   "raw_text": "parse the jason and write it to disk",
+   "final_text": "parse the jason and write it to disk",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 9,
+   "timestamp_ms": 1794229200000,
+   "kind": "dictation",
+   "raw_text": "the jason schema needs a version field",
+   "final_text": "the jason schema needs a version field",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  },
+  {
+   "id": 10,
+   "timestamp_ms": 1794229200000,
+   "kind": "dictation",
+   "raw_text": "cloud code should read the readme first",
+   "final_text": "cloud code should read the readme first",
+   "application": "Terminal",
+   "audio_ms": 4000,
+   "inference_ms": 120,
+   "total_ms": 300
+  }
+ ]
+}

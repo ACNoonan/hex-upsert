@@ -1,0 +1,14 @@
+{
+  "name": "hex-upsert",
+  "owner": {
+    "name": "Adam Noonan"
+  },
+  "description": "hex-upsert: teach Hex your dictation mishearings from Claude Code's corrections.",
+  "plugins": [
+    {
+      "name": "hex-upsert",
+      "source": "./",
+      "description": "Turns the dictation mishearings Claude corrects into Hex replacements, gated so a replacement never corrupts a word you really meant."
+    }
+  ]
+}

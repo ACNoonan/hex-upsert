@@ -1,0 +1,26 @@
+{
+  "transcription": {
+    "model": "parakeet_unified_en",
+    "language": "en",
+    "recognition_hints": ""
+  },
+  "dictation_processing": {
+    "default_mode": {
+      "name": "Global",
+      "applications": [],
+      "browser_hosts": [],
+      "replacements": [
+        {
+          "matched_phrase": "cloud code",
+          "output": "Claude Code"
+        }
+      ],
+      "transformations": [],
+      "post_processing": {
+        "enabled": false
+      }
+    },
+    "modes": []
+  },
+  "history_retention": "forever"
+}
