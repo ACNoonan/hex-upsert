@@ -1,13 +1,13 @@
 # hex-upsert-skill
 
 A Claude Code skill that learns from the dictation mistakes Claude already corrects, and turns the
-safe ones into [Hex](https://github.com/kitlangton/Hex) replacements and recognition hints.
+safe ones into [Hex](https://github.com/anomalyco/hex) replacements and recognition hints.
 
 **Status: v0.2, early.** A Claude Code plugin for macOS. Built and tested against Hex 2.3.1.
 
 ## Install
 
-You need macOS, [Hex 2](https://github.com/kitlangton/Hex) and Claude Code. In Claude Code:
+You need macOS, [Hex 2](https://github.com/anomalyco/hex) and Claude Code. In Claude Code:
 
 ```
 /plugin marketplace add ACNoonan/hex-upsert-skill
