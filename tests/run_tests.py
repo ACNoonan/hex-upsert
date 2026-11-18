@@ -184,7 +184,10 @@ def test_schedulers():
         r = subprocess.run(["systemd-analyze", "verify", "--user", *(os.path.join(units, f) for f in os.listdir(units))],
                            capture_output=True, text=True)
         check("systemd-analyze accepts the units", r.returncode == 0 or "hex-upsert" not in r.stderr, r.stderr)
-    live = {**env, "HEX_UPSERT_SKIP_CHECKS": "1", "XDG_CONFIG_HOME": os.path.join(tmp, "config")}
+    # the real HOME: systemd's user manager only reads units from the real ~/.config/systemd/user
+    live = {**env, "HEX_UPSERT_SKIP_CHECKS": "1", "HOME": os.environ.get("HOME", ""),
+            "USERPROFILE": os.environ.get("USERPROFILE", "")}
+    live.pop("XDG_CONFIG_HOME", None)
     if sys.platform == "win32":
         run("schedule.py", env=live)
         q = subprocess.run(["powershell", "-NoProfile", "-Command",

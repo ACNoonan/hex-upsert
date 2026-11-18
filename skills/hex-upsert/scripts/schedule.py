@@ -118,7 +118,8 @@ def windows_task(python, claude, auto):
            "set PYTHONIOENCODING=utf-8\r\n"
            f'"{python}" "{os.path.join(STATE, "bin", "run_weekly.py")}"{" --auto-apply" if auto else ""}'
            f' >> "{LOG}" 2>&1\r\n')
-    ps = (f"$a = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument {ps_quote('/c \"' + wrapper + '\"')};"
+    argument = ps_quote('/c "' + wrapper + '"')
+    ps = (f"$a = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument {argument};"
           "$t = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 4am;"
           "$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries "
           "-DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 2);"
