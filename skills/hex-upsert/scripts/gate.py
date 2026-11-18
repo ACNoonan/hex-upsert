@@ -19,22 +19,20 @@ Also proposes recognition hints: the "meant" side of every pair that reaches "re
 """
 import argparse
 import datetime as dt
-import json
+import gzip
 import math
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from hexpaths import load_json  # noqa: E402
-
-WORDS_FILE = "/usr/share/dict/words"
-
+from hexpaths import WORDS, load_json, save_json  # noqa: E402
 
 def dictionary():
-    try:
-        return {w.strip().lower() for w in open(WORDS_FILE)}
-    except OSError:
-        return set()
+    """Webster's 2nd (web2, public domain), the list macOS ships as /usr/share/dict/words.
+    It's bundled so the gate decides the same way on every OS: without it every word would
+    count as rare and pass on 2 days instead of 29."""
+    with gzip.open(WORDS, "rt", encoding="utf-8") as f:
+        return {w.strip().lower() for w in f}
 
 
 def binom_sf(k, n, p):
@@ -126,7 +124,7 @@ def main():
     plan["hints"] = sorted(set(plan["hints"]))
     plan["settings"] = {"alpha": a.alpha, "target": a.target, "min_rare": a.min_rare,
                         "clean_days_needed_for_common_word": math.ceil(math.log(a.alpha) / math.log(a.target))}
-    json.dump(plan, open(a.out, "w"), indent=1, ensure_ascii=False)
+    save_json(a.out, plan, indent=1)
 
     print(f'{"heard":<22} {"meant":<22} {"err d":>5} {"lit d":>5} {"p_l":>6}  decision')
     for r in plan["rows"]:

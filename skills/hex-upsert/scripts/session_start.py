@@ -6,7 +6,7 @@
 2. A weekly nudge, on fresh startups only. Once every 7 days it runs the cheap, read-only steps
    (collect + occurrences, about 2 s) and tells Claude to offer /hex-upsert when some pair has
    unreviewed occurrences and shows up on 2+ days in total, the least any replacement needs.
-   If the launchd schedule is installed it only reports a plan the schedule saved.
+   If the weekly schedule is installed it only reports a plan the schedule saved.
 
 Never writes Hex settings, never calls a model, and never fails the session: any error is silent.
 """
@@ -18,18 +18,23 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from hexpaths import SETTINGS, STATE, load_json  # noqa: E402
+from hexpaths import STATE, hex_installed, load_json, read_text, write_text  # noqa: E402
 
 WEEK = 7 * 86400
 PLIST = os.path.expanduser("~/Library/LaunchAgents/local.hex-upsert.plist")
+
+
+def scheduled():
+    """The weekly job is installed: schedule.sh writes <state>/scheduled; older installs only have the plist."""
+    return os.path.exists(os.path.join(STATE, "scheduled")) or os.path.exists(PLIST)
 
 RULE = """hex-upsert: the user dictates through Hex, a local speech-to-text app. When you fix a word or phrase in their prompt that Hex misheard, write the tag [heard: "<exact words in the prompt>" → meant: "<intended words>"] once per pair per turn. Use it only for sound-alike mishearings. Typos and your reading of what they meant don't get the tag. The hex-upsert skill mines these tags into Hex replacements."""
 
 
 def has_rule():
-    p = os.path.expanduser("~/.claude/CLAUDE.md")
+    p = os.path.join(os.path.expanduser("~"), ".claude", "CLAUDE.md")
     try:
-        return "[heard:" in open(p).read()
+        return "[heard:" in read_text(p)
     except OSError:
         return False
 
@@ -40,7 +45,7 @@ def day(ms):
 
 def nudge():
     pending = os.path.join(STATE, "pending.json")
-    if os.path.exists(PLIST):
+    if scheduled():
         if os.path.exists(pending):
             n = len(load_json(pending).get("replacements", []))
             return (f"hex-upsert: the weekly run found {n} Hex correction(s) that passed the safety gate "
@@ -50,13 +55,13 @@ def nudge():
 
     stamp = os.path.join(STATE, "last_check")
     try:
-        if time.time() - float(open(stamp).read()) < WEEK:
+        if time.time() - float(read_text(stamp)) < WEEK:
             return None
     except (OSError, ValueError):
         pass
     work = os.path.join(STATE, "check")
     os.makedirs(work, exist_ok=True)
-    open(stamp, "w").write(str(int(time.time())))
+    write_text(stamp, str(int(time.time())))
     cand, occ = os.path.join(work, "candidates.json"), os.path.join(work, "occurrences.json")
     for args in (["collect.py", "--days", "60", "--out", cand], ["occurrences.py", cand, "--out", occ]):
         subprocess.run([sys.executable, os.path.join(HERE, args[0]), *args[1:]],
@@ -85,7 +90,7 @@ def main():
         event = json.load(sys.stdin)
     except ValueError:
         event = {}
-    if not os.path.exists(SETTINGS):  # no Hex 2 on this Mac: stay silent
+    if not hex_installed():  # no Hex on this machine: stay silent
         return
     out = []
     if not has_rule():

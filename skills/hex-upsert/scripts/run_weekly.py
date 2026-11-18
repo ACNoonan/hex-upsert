@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Unattended run, meant for launchd: collect -> occurrences -> label -> gate -> apply -> notify.
+"""Unattended weekly run: collect -> occurrences -> label -> gate -> apply -> notify.
 
-Private working data goes to ~/Library/Application Support/hex-upsert/runs/<date>/, never a repo.
-A seed file of hand-found pairs, if present, lives at ~/Library/Application Support/hex-upsert/seed.json.
+Private working data goes to <state>/runs/<date>/, never a repo. <state> is hex-upsert in the
+OS's data folder (macOS ~/Library/Application Support, Linux ~/.local/share, Windows %APPDATA%).
+A seed file of hand-found pairs, if present, lives at <state>/seed.json.
 
 Modes:
   default       find safe corrections, save the plan, notify ("run /hex-upsert to apply")
@@ -11,7 +12,8 @@ Modes:
 Safety:
   - skips the run if Hex transcribed anything in the last --idle-minutes (default 30)
   - applies replacements only, never recognition hints
-  - quits Hex gracefully, writes, relaunches, and rolls back if Hex won't start (upsert.py)
+  - Hex 3: writes through `hex settings apply`, which validates and saves live; Hex stays open
+  - Hex 2: quits Hex gracefully, writes, relaunches, and rolls back if Hex won't start (upsert.py)
   - --dry-run does everything except quitting Hex and writing settings
 """
 import argparse
@@ -24,11 +26,12 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from hexpaths import STATE, history_entries  # noqa: E402
+from hexpaths import BACKEND, STATE, SYSTEM, history_entries, read_text, write_text  # noqa: E402
 
 
 def py(script, *args):
-    r = subprocess.run([sys.executable, os.path.join(HERE, script), *args], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, os.path.join(HERE, script), *args], capture_output=True, text=True,
+                       encoding="utf-8")
     sys.stdout.write(r.stdout)
     sys.stderr.write(r.stderr)
     if r.returncode != 0:
@@ -37,18 +40,38 @@ def py(script, *args):
 
 
 def keychain_token():
-    """A `claude setup-token` token stored by schedule.sh --store-token. It outlives the normal login."""
+    """A `claude setup-token` token stored by schedule.sh --store-token (macOS Keychain). It
+    outlives the normal login. Elsewhere the job relies on the normal `claude` login."""
+    if SYSTEM != "Darwin":
+        return ""
     r = subprocess.run(["security", "find-generic-password", "-s", "hex-upsert", "-a", "claude-oauth-token", "-w"],
                        capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
 def notify(title, text):
+    """A desktop notification; the log always has the same line."""
     text = text.replace('"', "'")[:240]
-    subprocess.run(["osascript", "-e", f'display notification "{text}" with title "{title}"'], capture_output=True)
+    print(f"notify: {title}: {text}")
+    try:
+        if SYSTEM == "Darwin":
+            subprocess.run(["osascript", "-e", f'display notification "{text}" with title "{title}"'], capture_output=True)
+        elif SYSTEM == "Linux":
+            subprocess.run(["notify-send", "--app-name=hex-upsert", title, text], capture_output=True)
+        elif SYSTEM == "Windows":
+            esc = lambda s: s.replace("'", "''").replace("&", "&amp;").replace("<", "&lt;")  # noqa: E731
+            ps = ("[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]>$null;"
+                  "$x=New-Object Windows.Data.Xml.Dom.XmlDocument;"
+                  f"$x.LoadXml('<toast><visual><binding template=\"ToastGeneric\"><text>{esc(title)}</text><text>{esc(text)}</text></binding></visual></toast>');"
+                  "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('hex-upsert').Show("
+                  "[Windows.UI.Notifications.ToastNotification]::new($x))")
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True)
+    except OSError:
+        pass
 
 
 def hex_running():
+    """Hex 2 only: it must be quit before settings.json is written."""
     return subprocess.run(["pgrep", "-f", "Hex.app/Contents/MacOS/hex"], capture_output=True).returncode == 0
 
 
@@ -76,7 +99,7 @@ def main():
         print("Hex was used in the last %d minutes; skipping" % a.idle_minutes)
         return
     os.makedirs(STATE, exist_ok=True)
-    open(os.path.join(STATE, "last_run"), "w").write(str(int(time.time())))
+    write_text(os.path.join(STATE, "last_run"), str(int(time.time())))
 
     token = keychain_token()
     if token:
@@ -92,7 +115,7 @@ def main():
     try:
         py("label.py", labels)
     except SystemExit:
-        notify("Hex upsert", "Labelling failed. Your Claude login or setup-token may have expired: run claude auth login, or schedule.sh --store-token. Log: ~/Library/Logs/hex-upsert.log")
+        notify("Hex upsert", "Labelling failed. Your Claude login or setup-token may have expired: run claude auth login, or schedule.sh --store-token. See the hex-upsert log.")
         raise
     py("gate.py", cand, labels, "--out", plan)
 
@@ -100,32 +123,32 @@ def main():
     new = [l for l in dry.splitlines() if l.startswith("+ replacement")]
     report = os.path.join(w, "report.txt")
     if not new:
-        open(report, "w").write("no new replacements\n" + dry)
+        write_text(report, "no new replacements\n" + dry)
         print("no new replacements")
         return
     if a.dry_run:
-        open(report, "w").write("DRY RUN, would add:\n" + "\n".join(new) + "\n")
+        write_text(report, "DRY RUN, would add:\n" + "\n".join(new) + "\n")
         print("dry run; not applying")
         return
     pairs = [l.split("replacement", 1)[1].strip() for l in new]
     if not a.auto_apply:
         pending = os.path.join(STATE, "pending.json")
-        open(pending, "w").write(open(plan).read())
-        open(report, "w").write("ready to apply:\n" + "\n".join(new) + "\n")
+        write_text(pending, read_text(plan))
+        write_text(report, "ready to apply:\n" + "\n".join(new) + "\n")
         notify("Hex upsert: %d correction%s ready" % (len(pairs), "" if len(pairs) == 1 else "s"),
                "; ".join(pairs) + ". Ask Claude Code to run hex-upsert to review and apply.")
         print("notify-only; plan saved to " + pending)
         return
-    if hex_running() and not quit_hex():
+    if BACKEND == "file" and SYSTEM == "Darwin" and hex_running() and not quit_hex():
         notify("Hex upsert", "Hex didn't quit, so nothing was changed.")
         raise SystemExit("Hex did not quit")
     try:
         out = py("upsert.py", plan, "--apply")
     except SystemExit:
-        notify("Hex upsert", "Applying failed and the settings were rolled back. See " + report)
-        open(report, "w").write("FAILED, rolled back\n")
+        notify("Hex upsert", "Applying failed; nothing was changed or the backup was restored. See " + report)
+        write_text(report, "FAILED, rolled back\n")
         raise
-    open(report, "w").write(out)
+    write_text(report, out)
     notify("Hex learned %d correction%s" % (len(pairs), "" if len(pairs) == 1 else "s"), "; ".join(pairs))
 
 

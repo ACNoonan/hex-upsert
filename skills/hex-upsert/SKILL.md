@@ -6,7 +6,8 @@ argument-hint: "[schedule [--auto-apply] | unschedule]"
 
 # hex-upsert
 
-Hex (com.kitlangton.hex2, macOS) transcribes the user's speech. When Claude corrects a misheard
+Hex (anomalyco/hex: Hex 3 on macOS, Linux and Windows, or legacy Hex 2 on macOS) transcribes
+the user's speech. When Claude corrects a misheard
 word it writes a tag: `[heard: "X" → meant: "Y"]`. This skill mines those tags, checks each pair
 against Hex's own history, and proposes replacements that are safe to apply everywhere.
 
@@ -15,14 +16,19 @@ replacement corrupts every real use of that word, so the gate is strict on purpo
 
 Scripts live in `scripts/` next to this file (call that folder `$S`). Work in a fresh folder
 under the session's scratchpad or a temp dir (call it `$W`). Never write dictation text into a
-git repo. Persistent state lives in `~/Library/Application Support/hex-upsert/`.
+git repo. Persistent state lives in a `hex-upsert` folder in the OS's data folder (macOS
+`~/Library/Application Support`, Linux `~/.local/share`, Windows `%APPDATA%`); call it `$STATE`.
+Use `python3`, or `python` where only that exists (Windows). To see which Hex the scripts found:
+`python3 -c "import sys; sys.path.insert(0, '$S'); import hexpaths as h; print(h.BACKEND, h.HEX_DIR, h.hex_cli())"`
+(`cli` means Hex 3, `file` means Hex 2).
 
 ## Arguments
 
-- `schedule`: run `sh $S/schedule.sh` to install a weekly launchd job (Sundays 04:00). It
-  finds safe corrections and sends a macOS notification. It never changes Hex without a yes.
-  `schedule --auto-apply` also applies them, then notifies. Before running it, tell the user
-  what it does: it quits Hex for a few seconds on Sunday at 04:00, it labels with
+- `schedule` (macOS only for now; on Linux or Windows say the weekly schedule isn't built yet
+  and that the session nudge still works): run `sh $S/schedule.sh` to install a weekly launchd
+  job (Sundays 04:00). It finds safe corrections and sends a notification. It never changes Hex
+  without a yes. `schedule --auto-apply` also applies them, then notifies. Before running it,
+  tell the user what it does: on Hex 2 it quits Hex for a few seconds on Sunday at 04:00, it labels with
   headless `claude -p` on their Claude subscription (the script refuses API-key logins), and
   remove it with `unschedule`. Then confirm they want auto-apply, if they asked for it.
 - `schedule` also takes `--store-token`, to keep the job working past the normal login's expiry.
@@ -33,7 +39,7 @@ git repo. Persistent state lives in `~/Library/Application Support/hex-upsert/`.
 
 ## Review
 
-0. **Pending plan.** If `~/Library/Application Support/hex-upsert/pending.json` exists, a
+0. **Pending plan.** If `$STATE/pending.json` exists, a
    scheduled run already labelled and gated it. Show its replacements with
    `python3 $S/upsert.py <that file>` (a dry run) and go to step 6. After the user decides
    either way, run `python3 $S/reviewed.py --clear-pending`.
@@ -64,21 +70,27 @@ git repo. Persistent state lives in `~/Library/Application Support/hex-upsert/`.
 
 5. **Report to the user.** Use three buckets: *safe to replace*, *in-context only* (a literal use
    exists, so Claude keeps fixing it in context) and *not enough evidence*. Give the counts
-   for each pair. Show any proposed recognition hints separately.
+   for each pair. Show any proposed vocabulary terms (Hex 3) or recognition hints (Hex 2)
+   separately.
 
 6. **Upsert, only on the user's yes.**
-   `python3 $S/upsert.py $W/plan.json` (dry run), then show the diff. After they say yes,
-   quit Hex (`osascript -e 'tell application "Hex" to quit'`, telling them first), then:
-   `python3 $S/upsert.py $W/plan.json --apply`
-   The script refuses while Hex is running, backs up `settings.json`, writes, relaunches Hex
-   and restores the backup if Hex won't start. Recognition hints need `--hints`, and the script
-   refuses them on Parakeet models: Hex won't even launch with hints set on a model that
-   doesn't support them.
+   `python3 $S/upsert.py $W/plan.json` (dry run), then show the diff. After they say yes:
+   - **Hex 3:** `python3 $S/upsert.py $W/plan.json --apply`. It goes through Hex's own
+     `hex settings apply`, which validates and applies the change live. Hex stays open. The
+     old Global mode is saved in `$STATE/backups/`, and `hex settings apply <that file>` undoes it.
+     `--hints` adds the proposed terms to Hex's vocabulary, with the heard forms as "sounds
+     like" spellings. Transcription uses them only with Labs › Vocabulary help on.
+   - **Hex 2:** quit Hex first (macOS: `osascript -e 'tell application "Hex" to quit'`,
+     telling them first), then run the same command. The script refuses while Hex is running,
+     backs up `settings.json`, writes, relaunches Hex and restores the backup if Hex won't
+     start. `--hints` writes recognition hints, and the script refuses them on Parakeet
+     models: Hex 2 won't even launch with hints set on a model that doesn't support them.
 
 ## The gate, in one paragraph
 
 Occurrences count once per calendar day. Any literal day means *in-context only*. A rare form
-(a multi-word phrase, or a single word missing from `/usr/share/dict/words`) needs at least 2
+(a multi-word phrase, or a single word missing from the bundled `data/words.txt.gz`, the
+public-domain Webster's 2nd list macOS ships as `/usr/share/dict/words`) needs at least 2
 error days and no literal ones. A common single word needs the one-sided 95% lower bound on
 precision to reach 0.9. With every day an error, that bound is 0.05^(1/n), so it needs 29 clean
 days. The derivation is in `docs/gate.md` in the repo.

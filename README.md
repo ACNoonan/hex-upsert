@@ -1,21 +1,29 @@
 # hex-upsert-skill
 
 A Claude Code skill that learns from the dictation mistakes Claude already corrects, and turns the
-safe ones into [Hex](https://github.com/anomalyco/hex) replacements and recognition hints.
+safe ones into [Hex](https://github.com/anomalyco/hex) replacements and vocabulary.
 
-**Status: v0.2, early.** A Claude Code plugin for macOS. Built and tested against Hex 2.3.1.
+**Status: v0.3, early.** A Claude Code plugin. It works with Hex 3 on macOS, Linux and Windows,
+and with Hex 2.3.1 on macOS.
+
+| | Tested how |
+|---|---|
+| Hex 2.3.1, macOS | On a real install, daily |
+| Hex 3 (any OS) | Against a test double of Hex's `hex` CLI, built from the Hex 3.4.0 source. Not yet on a real Hex 3. Reports welcome |
+| Linux, Windows | The test suite runs there in CI. The weekly schedule is macOS-only for now |
 
 ## Install
 
-You need macOS, [Hex 2](https://github.com/anomalyco/hex) and Claude Code. In Claude Code:
+You need [Hex](https://anoma.ly/hex), Claude Code and Python 3.9 or later on your PATH. In Claude Code:
 
 ```
 /plugin marketplace add ACNoonan/hex-upsert-skill
 /plugin install hex-upsert@hex-upsert
 ```
 
-Set Hex's history retention to 30 days or Forever in its settings. The gate checks every
-pair against your own transcripts, so it needs history to work with.
+Set Hex's history retention to 30 days or Forever in its settings (Hex 3 keeps 7 days by
+default). The gate checks every pair against your own transcripts, so it needs history to work
+with.
 
 That's all the setup the default mode needs:
 
@@ -32,22 +40,34 @@ That's all the setup the default mode needs:
 ## What it reads, and where it goes
 
 - **Read locally:** your Claude Code session logs (`~/.claude/projects/`, only the assistant's
-  `[heard → meant]` tags, from the last 60 days) and Hex's history
-  (`~/Library/Application Support/voice-control/history.json`).
+  `[heard → meant]` tags, from the last 60 days) and Hex's `history.json`:
+
+  | Hex | Data folder |
+  |---|---|
+  | Hex 3, macOS | `~/Library/Application Support/hex` |
+  | Hex 3, Linux | `$XDG_DATA_HOME/hex`, else `~/.local/share/hex` |
+  | Hex 3, Windows | `%APPDATA%\hex` |
+  | Hex 2, macOS | `~/Library/Application Support/voice-control` |
+
+  Hex 3 imports nothing from Hex 2. If you upgraded, both folders exist: the tool writes to
+  Hex 3 and still reads the Hex 2 history as extra evidence.
 - **Sent to Claude:** to label a pair, Claude reads a snippet of about 140 characters around each
   match in your Hex history. In the default mode that happens inside your own Claude Code
   session. In scheduled mode it goes through headless `claude -p` on your subscription.
   Nothing goes anywhere else.
-- **Written:** only Hex's `settings.json`, only after a yes (or with `--auto-apply`), always
-  with a timestamped backup next to it. Working files stay in
-  `~/Library/Application Support/hex-upsert/`.
+- **Written:** only Hex's Global replacements (and vocabulary, if you ask), only after a yes
+  (or with `--auto-apply`). On Hex 3 the change goes through Hex's own `hex settings apply`,
+  which validates it and applies it live, with the old value saved to `hex-upsert/backups/`. On
+  Hex 2 it writes `settings.json` while Hex is quit, with a timestamped backup next to it.
+  Working files stay in a `hex-upsert` folder beside Hex's data folder.
 - **Refused:** if Hex's settings don't have the shape this tool expects (say, after a Hex
   update), it writes nothing and tells you which field changed.
 
 ## Run it unattended (optional)
 
-Ask Claude to run `hex-upsert schedule`, or run `skills/hex-upsert/scripts/schedule.sh` yourself.
-It installs a launchd job (`local.hex-upsert`) that runs Sundays at 04:00:
+macOS only for now (systemd and Task Scheduler versions are next). Ask Claude to run
+`hex-upsert schedule`, or run `skills/hex-upsert/scripts/schedule.sh` yourself. It installs a
+launchd job (`local.hex-upsert`) that runs Sundays at 04:00:
 
 - It skips the run if Hex was used in the last 30 minutes.
 - Headless `claude -p` labels each occurrence twice. Any disagreement becomes `unclear`, so
@@ -55,7 +75,8 @@ It installs a launchd job (`local.hex-upsert`) that runs Sundays at 04:00:
   Claude subscription, and the run strips API keys, so it never bills an API account.
 - By default it sends a notification when safe corrections are ready, and the next Claude
   session offers to apply them. With `schedule --auto-apply` it applies replacements itself
-  (never recognition hints), relaunches Hex, rolls back if Hex won't start, and notifies you.
+  (never vocabulary or hints) and notifies you. On Hex 2 it quits Hex for a few seconds,
+  relaunches it and rolls back if Hex won't start.
 - Your normal `claude` login expires every few weeks. To keep the job running, run
   `schedule.sh --store-token` once. It runs `claude setup-token` (a long-lived subscription
   token), asks you to paste the token into a hidden prompt, checks it with one tiny call, and
@@ -73,6 +94,7 @@ Run data stays in `~/Library/Application Support/hex-upsert/`. Remove the job, a
 ```
 
 This runs the whole pipeline on synthetic data in a temp folder. It touches nothing else.
+`python3 tests/run_tests.py` runs the same pipeline against both Hex generations, on any OS.
 
 How the gate decides is in [`docs/gate.md`](docs/gate.md).
 
@@ -100,5 +122,5 @@ Aggregate numbers only. The raw data stays private.
 ## Roadmap
 
 1. Measure word error rate before and after, with Hex's `benchmark-transcription` command.
-2. Recognition hints for models that support them (Parakeet doesn't, and Hex won't start with them set).
-3. Re-check the settings shape automatically after each Hex update.
+2. Weekly schedule on Linux (systemd user timer) and Windows (Task Scheduler).
+3. Verify the Hex 3 path on a real install on each OS.

@@ -4,12 +4,11 @@
   reviewed.py LABELS.json        add every labelled occurrence id to the reviewed set
   reviewed.py --clear-pending    drop the plan a notify-only scheduled run saved
 """
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from hexpaths import STATE, load_json  # noqa: E402
+from hexpaths import STATE, load_json, save_json  # noqa: E402
 
 
 def main():
@@ -27,7 +26,7 @@ def main():
         seen = set()
     before = len(seen)
     seen |= {o["id"] for o in load_json(sys.argv[1])["occurrences"] if o.get("label")}
-    json.dump(sorted(seen), open(path, "w"), indent=0, ensure_ascii=False)
+    save_json(path, sorted(seen), indent=0)
     print(f"reviewed set: {before} -> {len(seen)}")
 
 

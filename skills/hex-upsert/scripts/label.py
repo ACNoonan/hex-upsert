@@ -9,13 +9,14 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from hexpaths import load_json  # noqa: E402
+from hexpaths import load_json, save_json  # noqa: E402
 
-CLAUDE = os.environ.get("CLAUDE_BIN", os.path.expanduser("~/.local/bin/claude"))
+CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
 
 SYSTEM = """You label speech-to-text output. Each item shows a snippet of dictated text with one
 phrase marked like ⟦this⟧, plus a candidate correction. Decide what the speaker meant by the
@@ -31,7 +32,7 @@ def ask(items, model, env):
     r = subprocess.run(
         [CLAUDE, "-p", json.dumps(items, ensure_ascii=False), "--tools", "", "--model", model,
          "--no-session-persistence", "--system-prompt", SYSTEM],
-        capture_output=True, text=True, env=env, timeout=600,
+        capture_output=True, text=True, encoding="utf-8", env=env, timeout=600,
     )
     if r.returncode != 0:
         sys.exit(f"claude -p failed ({r.returncode}): {r.stderr[-500:]}")
@@ -70,7 +71,7 @@ def main():
         else:
             o["label"] = None
     print(f"passes disagreed on {flips} of {len(todo)} (labelled unclear)")
-    json.dump(sheet, open(a.labels, "w"), indent=1, ensure_ascii=False)
+    save_json(a.labels, sheet, indent=1)
     missing = [o["id"] for o in todo if o["label"] is None]
     print(f"labelled {len(todo) - len(missing)} of {len(todo)}")
     if missing:

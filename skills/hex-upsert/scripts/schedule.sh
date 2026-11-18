@@ -10,6 +10,10 @@
 # launchd jobs can't read ~/Documents (macOS privacy protection), so the scripts are copied to
 # ~/Library/Application Support/hex-upsert/bin and run from there. Re-run after updating.
 set -e
+if [ "$(uname)" != "Darwin" ]; then
+  echo "The weekly schedule is macOS-only for now. The session nudge and the skill itself work here." >&2
+  exit 1
+fi
 HERE=$(cd "$(dirname "$0")" && pwd)
 STATE="$HOME/Library/Application Support/hex-upsert"
 LABEL=local.hex-upsert
@@ -27,6 +31,7 @@ has_token() { security find-generic-password -s "$KC_SERVICE" -a "$KC_ACCOUNT" >
 
 if [ "$1" = "--uninstall" ]; then
   remove "$LABEL"
+  rm -f "$STATE/scheduled"
   security delete-generic-password -s "$KC_SERVICE" -a "$KC_ACCOUNT" >/dev/null 2>&1 || true
   echo "removed the weekly hex-upsert job and its Keychain token"
   exit 0
@@ -60,10 +65,11 @@ fi
 AUTO=""
 [ "$1" = "--auto-apply" ] && AUTO="<string>--auto-apply</string>"
 
-# Hex 2 keeps its settings here. Hex 1 used a different format that this tool doesn't write.
-if [ ! -f "$HOME/Library/Application Support/voice-control/settings.json" ]; then
-  echo "Hex 2 settings not found at ~/Library/Application Support/voice-control/settings.json." >&2
-  echo "hex-upsert needs Hex 2 (com.kitlangton.hex2). Nothing installed." >&2
+# Hex 3 keeps its settings in .../hex, Hex 2 in .../voice-control. Hex 1 used a format this tool doesn't write.
+AS="$HOME/Library/Application Support"
+if [ ! -f "$AS/hex/settings.json" ] && [ ! -f "$AS/voice-control/settings.json" ]; then
+  echo "No Hex settings found in ~/Library/Application Support/hex (Hex 3) or .../voice-control (Hex 2)." >&2
+  echo "Install Hex from https://anoma.ly/hex and run it once. Nothing installed." >&2
   exit 1
 fi
 
@@ -78,8 +84,9 @@ if [ "$METHOD" != "claude.ai" ] && ! has_token; then
 fi
 CLAUDE_DIR=$(dirname "$CLAUDE")
 
-mkdir -p "$STATE/bin" "$HOME/Library/LaunchAgents"
+mkdir -p "$STATE/bin" "$STATE/data" "$HOME/Library/LaunchAgents"
 cp "$HERE"/*.py "$STATE/bin/"
+cp "$HERE"/../data/* "$STATE/data/"
 cat > "$PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -107,5 +114,6 @@ PL
 plutil -lint "$PLIST" >/dev/null
 launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
 launchctl bootstrap "$DOMAIN" "$PLIST"
+date +%s > "$STATE/scheduled"
 if [ -n "$AUTO" ]; then MODE="applies safe corrections, then notifies you"; else MODE="notifies you when safe corrections are ready"; fi
 echo "installed $LABEL: Sundays 04:00, $MODE. Log: ~/Library/Logs/hex-upsert.log"

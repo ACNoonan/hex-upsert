@@ -51,7 +51,7 @@ gate uses prior knowledge about the word:
 
 | Tier | Test | Rule |
 |---|---|---|
-| Rare form | a multi-word phrase, or a single word missing from `/usr/share/dict/words` | ≥ 2 error days and no literal day |
+| Rare form | a multi-word phrase, or a single word missing from the bundled Webster's 2nd list (`skills/hex-upsert/data/words.txt.gz`, the `/usr/share/dict/words` macOS ships) | ≥ 2 error days and no literal day |
 | Common word | a single dictionary word | no literal day and pₗ ≥ 0.9 |
 | Any | at least one literal day | in-context only, never a replacement |
 

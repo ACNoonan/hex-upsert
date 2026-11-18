@@ -1,6 +1,6 @@
 {
   "name": "hex-upsert",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turns the dictation mishearings Claude corrects into Hex replacements, gated so a replacement never corrupts a word you really meant.",
   "author": { "name": "Adam Noonan" },
   "license": "MIT",

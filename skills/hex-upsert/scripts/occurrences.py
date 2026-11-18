@@ -6,12 +6,11 @@ case-insensitive, whole-word rule Hex uses. Each history entry counts once per c
 Writes a labelling sheet: Claude fills "label" with error | literal | unclear.
 """
 import argparse
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from hexpaths import history_entries, load_json, phrase_regex  # noqa: E402
+from hexpaths import history_entries, load_json, phrase_regex, save_json  # noqa: E402
 
 CONTEXT = 70
 
@@ -45,7 +44,7 @@ def main():
                 "context": raw[lo:m.start()] + "⟦" + m.group(0) + "⟧" + raw[m.end():hi],
                 "label": None,
             })
-    json.dump({"history_entries": len(hist), "occurrences": rows}, open(a.out, "w"), indent=1, ensure_ascii=False)
+    save_json(a.out, {"history_entries": len(hist), "occurrences": rows}, indent=1)
     print(f"{len(rows)} occurrences across {len(hist)} history entries -> {a.out}")
 
 

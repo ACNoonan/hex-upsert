@@ -22,9 +22,11 @@ live in `.private/`, which is gitignored. Public examples are synthetic.
 |---|---|
 | `README.md` | What the skill does, how to install it, the aggregate result |
 | `STRUCTURE.md` | This file |
-| `skills/hex-upsert/` | The Claude Code skill (`SKILL.md`), its scripts and the launchd installer |
+| `skills/hex-upsert/` | The Claude Code skill (`SKILL.md`), its scripts, the launchd installer and `data/words.txt.gz` (the gate's word list) |
 | `hooks/` | The plugin's SessionStart hook config |
 | `.claude-plugin/` | Plugin manifest and the single-plugin marketplace |
 | `docs/` | Method notes, such as the precision gate |
 | `examples/` | Synthetic demo data |
+| `tests/` | `run_tests.py` (end to end, any OS) and `fake_hex.py`, a test double of Hex 3's `hex` CLI |
+| `.github/workflows/` | CI: the tests on macOS, Linux and Windows |
 | `.private/` | Gitignored. Adam's real mining runs, one dated folder each |

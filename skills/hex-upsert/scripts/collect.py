@@ -17,13 +17,13 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(__file__))
-from hexpaths import LOGS_DIR, SETTINGS, load_json  # noqa: E402
+from hexpaths import LOGS_DIR, SETTINGS, load_json, write_text  # noqa: E402
 
 TAG = re.compile(r'\[heard:\s*["“](?P<heard>[^"”\]]{1,80})["”]\s*(?:→|->)\s*meant:\s*["“](?P<meant>[^"”\]]{1,80})["”]\s*\]')
 
 
 def assistant_texts(path):
-    with open(path, errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             if '"assistant"' not in line or "heard:" not in line:
                 continue
@@ -94,7 +94,7 @@ def main():
     result = {"logs_scanned": len(files), "candidates": out}
     text = json.dumps(result, indent=1, ensure_ascii=False)
     if a.out:
-        open(a.out, "w").write(text)
+        write_text(a.out, text)
     else:
         print(text)
 
