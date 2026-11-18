@@ -1,17 +1,32 @@
 # hex-upsert
 
-A Claude Code skill that learns from the dictation mistakes Claude already corrects, and turns the
-safe ones into [Hex](https://github.com/anomalyco/hex) replacements and vocabulary.
+hex-upsert is a Claude Code plugin for [Hex](https://github.com/anomalyco/hex) dictation. It
+turns the mishearings Claude already corrects into Hex replacements, and only the ones that are
+safe in every sentence.
 
-**Status: v0.3, early.** A Claude Code plugin. It works with Hex 3 on macOS, Linux and Windows,
-and with Hex 2.3.1 on macOS.
+## Why it exists
 
-| | Tested how |
-|---|---|
-| Hex 2.3.1, macOS | On a real install, daily |
-| Hex 3.4.0, macOS | On a real install: settings read, replacements applied live through `hex settings apply` |
-| Hex 3, Linux and Windows | Against a test double of Hex's `hex` CLI, built from the Hex 3.4.0 source and checked against the real macOS replies. Reports welcome |
-| Linux, Windows | The test suite runs there in CI, including installing and removing the weekly job |
+Hex transcribes speech into Claude Code. When a word comes out wrong, Claude usually reads the
+intended meaning and says what it assumed. That correction is lost after the session. hex-upsert
+mines those corrections and proposes the ones that are safe to apply to every transcript.
+
+A Hex replacement is a literal, context-free find-and-replace. A naive rule like `sequel → SQL`
+would also rewrite every real "sequel". So hex-upsert only promotes a pair when the misheard form
+is almost never meant literally, using a zero-failure lower confidence bound on precision. Context
+dependent errors stay with Claude.
+
+## How it fits with Hex's own features
+
+Hex 3 already has two places for a mishearing. Global replacements rewrite one piece of text as
+another. Vocabulary holds a name plus the "sounds like" spellings a transcript shows instead.
+Both rely on you to notice the mishearing and type it in, and neither tells you whether a rule
+is safe to apply everywhere.
+
+hex-upsert does those two parts. It finds the pairs in the corrections Claude already made,
+checks each one against your own Hex history, and writes the safe ones to Global replacements.
+If you ask, it also adds the intended word to Vocabulary, with the misheard forms as its "sounds
+like" spellings. On Parakeet models, Hex uses Vocabulary while transcribing only with Labs ›
+Vocabulary help on.
 
 ## Install
 
@@ -37,6 +52,17 @@ That's all the setup the default mode needs:
 - **The skill** (`/hex-upsert:hex-upsert`) labels every occurrence in your session, gates it
   and shows you the result. It changes Hex only after you say yes. Once you've reviewed a pair,
   the hook stays quiet about it until new occurrences turn up.
+
+## What it's been tested on
+
+**v0.3, early.** It works with Hex 3 on macOS, Linux and Windows, and with Hex 2.3.1 on macOS.
+
+| | Tested how |
+|---|---|
+| Hex 2.3.1, macOS | On a real install, daily |
+| Hex 3.4.0, macOS | On a real install: settings read, replacements applied live through `hex settings apply` |
+| Hex 3, Linux and Windows | Against a test double of Hex's `hex` CLI, built from the Hex 3.4.0 source and checked against the real macOS replies. Reports welcome |
+| Linux, Windows | The test suite runs there in CI, including installing and removing the weekly job |
 
 ## What it reads, and where it goes
 
@@ -106,17 +132,6 @@ This runs the whole pipeline on synthetic data in a temp folder. It touches noth
 `python3 tests/run_tests.py` runs the same pipeline against both Hex generations, on any OS.
 
 How the gate decides is in [`docs/gate.md`](docs/gate.md).
-
-## The idea
-
-Hex transcribes speech into Claude Code. When a word comes out wrong, Claude usually reads the
-intended meaning and says what it assumed. That correction is lost after the session. This skill
-mines those corrections and proposes the ones that are safe to apply to every transcript.
-
-A Hex replacement is a literal, context-free find-and-replace. A naive rule like `sequel → SQL`
-would also rewrite every real "sequel". So the skill only promotes a pair when the misheard form is
-almost never meant literally, using a zero-failure lower confidence bound on precision. Context
-dependent errors stay with Claude.
 
 ## First mining run (2026-11-15)
 
