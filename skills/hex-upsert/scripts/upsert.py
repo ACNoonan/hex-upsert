@@ -31,7 +31,7 @@ from hexpaths import (BACKEND, SETTINGS, STATE, SYSTEM, HexError, hex_call,  # n
                       load_json, save_json)
 
 KEY = "dictation_processing.default_mode"
-TESTED = {"cli": ["3.4.0 (against a test double built from its source; please report)"], "file": ["2.3.1"]}
+TESTED = {"cli": ["3.4.0 (macOS)"], "file": ["2.3.1"]}
 
 
 def schema_problem(mode):

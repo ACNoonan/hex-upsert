@@ -9,7 +9,8 @@ and with Hex 2.3.1 on macOS.
 | | Tested how |
 |---|---|
 | Hex 2.3.1, macOS | On a real install, daily |
-| Hex 3 (any OS) | Against a test double of Hex's `hex` CLI, built from the Hex 3.4.0 source. Not yet on a real Hex 3. Reports welcome |
+| Hex 3.4.0, macOS | On a real install: settings read, replacements applied live through `hex settings apply` |
+| Hex 3, Linux and Windows | Against a test double of Hex's `hex` CLI, built from the Hex 3.4.0 source and checked against the real macOS replies. Reports welcome |
 | Linux, Windows | The test suite runs there in CI. The weekly schedule is macOS-only for now |
 
 ## Install
@@ -123,4 +124,4 @@ Aggregate numbers only. The raw data stays private.
 
 1. Measure word error rate before and after, with Hex's `benchmark-transcription` command.
 2. Weekly schedule on Linux (systemd user timer) and Windows (Task Scheduler).
-3. Verify the Hex 3 path on a real install on each OS.
+3. Verify the Hex 3 path on a real Linux and Windows install.
