@@ -24,8 +24,8 @@ live in `.private/`, which is gitignored. Public examples are synthetic.
 | `STRUCTURE.md` | This file |
 | `skills/hex-upsert/` | The Claude Code skill (`SKILL.md`), its scripts, the launchd installer and `data/words.txt.gz` (the gate's word list) |
 | `hooks/` | The plugin's SessionStart hook config |
-| `.claude-plugin/` | Plugin manifest and the single-plugin marketplace |
-| `docs/` | Method notes, such as the precision gate |
+| `.claude-plugin/` | Plugin manifest, the single-plugin marketplace and `icon.png` (the listing icon, 1024 px) |
+| `docs/` | Method notes, such as the precision gate, and `icon.svg` (the icon's source) |
 | `examples/` | Synthetic demo data |
 | `tests/` | `run_tests.py` (end to end, any OS) and `fake_hex.py`, a test double of Hex 3's `hex` CLI |
 | `.github/workflows/` | CI: the tests on macOS, Linux and Windows |
