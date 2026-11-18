@@ -24,17 +24,20 @@ Use `python3`, or `python` where only that exists (Windows). To see which Hex th
 
 ## Arguments
 
-- `schedule` (macOS only for now; on Linux or Windows say the weekly schedule isn't built yet
-  and that the session nudge still works): run `sh $S/schedule.sh` to install a weekly launchd
-  job (Sundays 04:00). It finds safe corrections and sends a notification. It never changes Hex
+- `schedule`: install a weekly job, Sundays 04:00. On macOS run `sh $S/schedule.sh` (launchd).
+  On Linux and Windows run `python3 $S/schedule.py` (`python` on Windows): a systemd user timer
+  or a Task Scheduler task. It finds safe corrections and sends a notification. It never changes Hex
   without a yes. `schedule --auto-apply` also applies them, then notifies. Before running it,
   tell the user what it does: on Hex 2 it quits Hex for a few seconds on Sunday at 04:00, it labels with
   headless `claude -p` on their Claude subscription (the script refuses API-key logins), and
   remove it with `unschedule`. Then confirm they want auto-apply, if they asked for it.
-- `schedule` also takes `--store-token`, to keep the job working past the normal login's expiry.
+- On Linux, mention that user timers run only while the user is logged in unless they run
+  `loginctl enable-linger`. On Windows, a console window may flash at 04:00 when it runs.
+- `schedule` also takes `--store-token` (macOS only), to keep the job working past the normal login's expiry.
   It's interactive (a browser sign-in, then a hidden paste), so never run it yourself or ask for
   the token. Tell the user to run `sh $S/schedule.sh --store-token` in their own terminal.
-- `unschedule`: run `sh $S/schedule.sh --uninstall`. It also deletes the Keychain token.
+- `unschedule`: run `sh $S/schedule.sh --uninstall` (macOS; it also deletes the Keychain token)
+  or `python3 $S/schedule.py --uninstall` (Linux, Windows).
 - No argument: the review below.
 
 ## Review

@@ -5,8 +5,8 @@ Linux and Windows (CI runs all three). Touches nothing outside a temp folder.
   python3 tests/run_tests.py
 
 Covers both write paths: Hex 2's direct settings.json write, and Hex 3's `hex` CLI through
-tests/fake_hex.py (running and stopped), plus vocabulary, the schema guard and the
-SessionStart hook.
+tests/fake_hex.py (running and stopped), plus vocabulary, the schema guard, the
+SessionStart hook and the Linux and Windows schedulers.
 """
 import json
 import os
@@ -166,6 +166,50 @@ def test_hook():
     check("hook is silent without Hex", r3.stdout == "" and r3.returncode == 0, r3.stdout + r3.stderr)
 
 
+def test_schedulers():
+    """Both generators on any OS; a real install and removal where the OS supports it."""
+    tmp, env = setup("sched")
+    for target, must in (("Linux", ["OnCalendar=Sun *-*-* 04:00:00", "Persistent=true", "--auto-apply"]),
+                         ("Windows", ["Register-ScheduledTask", "-StartWhenAvailable", "--auto-apply"])):
+        out = run("schedule.py", "--os", target, "--dry-run", "--auto-apply", env=env).stdout
+        check(f"{target} schedule dry run has {', '.join(must)}", all(m in out for m in must), out)
+    if sys.platform.startswith("linux") and shutil.which("systemd-analyze"):
+        units = os.path.join(tmp, "units")
+        os.makedirs(units)
+        out = run("schedule.py", "--dry-run", env=env).stdout
+        for block in out.split("--- ")[1:]:
+            path, text = block.split("\n", 1)
+            with open(os.path.join(units, os.path.basename(path)), "w") as f:
+                f.write(text)
+        r = subprocess.run(["systemd-analyze", "verify", "--user", *(os.path.join(units, f) for f in os.listdir(units))],
+                           capture_output=True, text=True)
+        check("systemd-analyze accepts the units", r.returncode == 0 or "hex-upsert" not in r.stderr, r.stderr)
+    live = {**env, "HEX_UPSERT_SKIP_CHECKS": "1", "XDG_CONFIG_HOME": os.path.join(tmp, "config")}
+    if sys.platform == "win32":
+        run("schedule.py", env=live)
+        q = subprocess.run(["powershell", "-NoProfile", "-Command",
+                            "(Get-ScheduledTask -TaskName hex-upsert).Triggers[0].DaysOfWeek"],
+                           capture_output=True, text=True)
+        check("Windows task registered for Sundays", q.returncode == 0 and q.stdout.strip() == "1", q.stdout + q.stderr)
+        check("Windows wrapper and copied scripts exist",
+              os.path.exists(os.path.join(tmp, "state", "bin", "run_weekly.cmd")) and
+              os.path.exists(os.path.join(tmp, "state", "data", "words.txt.gz")))
+        run("schedule.py", "--uninstall", env=live)
+        q = subprocess.run(["powershell", "-NoProfile", "-Command", "Get-ScheduledTask -TaskName hex-upsert"],
+                           capture_output=True, text=True)
+        check("Windows task removed", q.returncode != 0, q.stdout)
+    elif sys.platform.startswith("linux") and subprocess.run(["systemctl", "--user", "show-environment"],
+                                                            capture_output=True).returncode == 0:
+        run("schedule.py", env=live)
+        q = subprocess.run(["systemctl", "--user", "is-enabled", "hex-upsert.timer"], capture_output=True, text=True)
+        check("systemd timer enabled", q.stdout.strip() == "enabled", q.stdout + q.stderr)
+        run("schedule.py", "--uninstall", env=live)
+        q = subprocess.run(["systemctl", "--user", "is-enabled", "hex-upsert.timer"], capture_output=True, text=True)
+        check("systemd timer removed", q.stdout.strip() != "enabled", q.stdout)
+    else:
+        print("skip real scheduler install (no Task Scheduler or user systemd here)")
+
+
 if __name__ == "__main__":
     test_gate()
     test_file_backend()
@@ -175,5 +219,6 @@ if __name__ == "__main__":
     test_schema_guard()
     test_no_cli()
     test_hook()
+    test_schedulers()
     print(f"\n{'all passed' if not failures else f'{len(failures)} failed'}")
     sys.exit(1 if failures else 0)

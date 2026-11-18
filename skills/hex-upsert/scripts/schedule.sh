@@ -11,8 +11,8 @@
 # ~/Library/Application Support/hex-upsert/bin and run from there. Re-run after updating.
 set -e
 if [ "$(uname)" != "Darwin" ]; then
-  echo "The weekly schedule is macOS-only for now. The session nudge and the skill itself work here." >&2
-  exit 1
+  # Linux (systemd user timer) and Windows (Task Scheduler) live in schedule.py
+  exec python3 "$(dirname "$0")/schedule.py" "$@"
 fi
 HERE=$(cd "$(dirname "$0")" && pwd)
 STATE="$HOME/Library/Application Support/hex-upsert"

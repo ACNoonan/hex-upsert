@@ -115,7 +115,8 @@ def main():
     try:
         py("label.py", labels)
     except SystemExit:
-        notify("Hex upsert", "Labelling failed. Your Claude login or setup-token may have expired: run claude auth login, or schedule.sh --store-token. See the hex-upsert log.")
+        notify("Hex upsert", "Labelling failed. Your Claude login may have expired: run claude auth login"
+               + (", or schedule.sh --store-token" if SYSTEM == "Darwin" else "") + ". See the hex-upsert log.")
         raise
     py("gate.py", cand, labels, "--out", plan)
 

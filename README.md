@@ -11,7 +11,7 @@ and with Hex 2.3.1 on macOS.
 | Hex 2.3.1, macOS | On a real install, daily |
 | Hex 3.4.0, macOS | On a real install: settings read, replacements applied live through `hex settings apply` |
 | Hex 3, Linux and Windows | Against a test double of Hex's `hex` CLI, built from the Hex 3.4.0 source and checked against the real macOS replies. Reports welcome |
-| Linux, Windows | The test suite runs there in CI. The weekly schedule is macOS-only for now |
+| Linux, Windows | The test suite runs there in CI, including installing and removing the weekly job |
 
 ## Install
 
@@ -66,9 +66,16 @@ That's all the setup the default mode needs:
 
 ## Run it unattended (optional)
 
-macOS only for now (systemd and Task Scheduler versions are next). Ask Claude to run
-`hex-upsert schedule`, or run `skills/hex-upsert/scripts/schedule.sh` yourself. It installs a
-launchd job (`local.hex-upsert`) that runs Sundays at 04:00:
+Ask Claude to run `hex-upsert schedule`, or run the installer yourself. Either way it installs a
+job that runs Sundays at 04:00, and a missed run happens at the next chance:
+
+| OS | Installer | Job |
+|---|---|---|
+| macOS | `sh skills/hex-upsert/scripts/schedule.sh` | launchd agent `local.hex-upsert` |
+| Linux | `python3 skills/hex-upsert/scripts/schedule.py` | systemd user timer `hex-upsert.timer`. It runs only while you're logged in, unless you run `loginctl enable-linger` |
+| Windows | `python skills\hex-upsert\scripts\schedule.py` | Task Scheduler task `hex-upsert`. A console window may flash when it runs |
+
+What the job does:
 
 - It skips the run if Hex was used in the last 30 minutes.
 - Headless `claude -p` labels each occurrence twice. Any disagreement becomes `unclear`, so
@@ -78,15 +85,16 @@ launchd job (`local.hex-upsert`) that runs Sundays at 04:00:
   session offers to apply them. With `schedule --auto-apply` it applies replacements itself
   (never vocabulary or hints) and notifies you. On Hex 2 it quits Hex for a few seconds,
   relaunches it and rolls back if Hex won't start.
-- Your normal `claude` login expires every few weeks. To keep the job running, run
+- Your normal `claude` login expires every few weeks. On macOS, to keep the job running, run
   `schedule.sh --store-token` once. It runs `claude setup-token` (a long-lived subscription
   token), asks you to paste the token into a hidden prompt, checks it with one tiny call, and
   stores it in your login Keychain, not in the launchd file. The job reads it at run time.
 - If labelling fails, for instance because a login or token expired, it notifies you.
 
-Run data stays in `~/Library/Application Support/hex-upsert/`. Remove the job, and the Keychain token, with
-`schedule.sh --uninstall`. Re-run `schedule.sh` after updating: launchd can't read
-`~/Documents`, so the job runs a copy of the scripts.
+Run data and the log stay in the `hex-upsert` state folder (macOS logs to
+`~/Library/Logs/hex-upsert.log`). Remove the job with `--uninstall` on the same installer; on
+macOS that also deletes the Keychain token. Re-run the installer after updating: the job runs a
+copy of the scripts, so a plugin update can't break a run halfway.
 
 ## Try it without installing
 
@@ -123,5 +131,4 @@ Aggregate numbers only. The raw data stays private.
 ## Roadmap
 
 1. Measure word error rate before and after, with Hex's `benchmark-transcription` command.
-2. Weekly schedule on Linux (systemd user timer) and Windows (Task Scheduler).
-3. Verify the Hex 3 path on a real Linux and Windows install.
+2. Verify Hex 3 and the weekly job on a real Linux and Windows desktop.
