@@ -1,4 +1,4 @@
-# Structure — hex-upsert-skill
+# Structure — hex-upsert
 
 **Kind: artifact (public tool).** S1 applies: root is a closed set of at most 12 non-config
 files. S2–S5 do not apply. This repo ships a tool and holds no ledger. Any measurement worth

@@ -1,4 +1,4 @@
-# hex-upsert-skill
+# hex-upsert
 
 A Claude Code skill that learns from the dictation mistakes Claude already corrects, and turns the
 safe ones into [Hex](https://github.com/anomalyco/hex) replacements and vocabulary.
@@ -18,7 +18,7 @@ and with Hex 2.3.1 on macOS.
 You need [Hex](https://anoma.ly/hex), Claude Code and Python 3.9 or later on your PATH. In Claude Code:
 
 ```
-/plugin marketplace add ACNoonan/hex-upsert-skill
+/plugin marketplace add ACNoonan/hex-upsert
 /plugin install hex-upsert@hex-upsert
 ```
 
