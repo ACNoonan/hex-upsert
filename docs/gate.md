@@ -51,9 +51,21 @@ gate uses prior knowledge about the word:
 
 | Tier | Test | Rule |
 |---|---|---|
-| Rare form | a multi-word phrase, or a single word missing from the bundled Webster's 2nd list (`skills/hex-upsert/data/words.txt.gz`, the `/usr/share/dict/words` macOS ships) | ≥ 2 error days and no literal day |
-| Common word | a single dictionary word | no literal day and pₗ ≥ 0.9 |
+| Rare form | the heard form has a word missing from the bundled Webster's 2nd list (`skills/hex-upsert/data/words.txt.gz`, the `/usr/share/dict/words` macOS ships), or it's a phrase of ordinary words whose correction is a term (`pie torch` → `PyTorch`) | ≥ 2 error days and no literal day |
+| Common form | a single dictionary word, or a phrase of ordinary words corrected to ordinary words (`his retention` → `history retention`) | no literal day and pₗ ≥ 0.9 |
 | Any | at least one literal day | in-context only, never a replacement |
+
+A word counts as ordinary if the list has it as it stands, or once a contraction or a regular
+ending (`-s`, `-ed`, `-ing`) is removed, or if it's hyphenated and each part is ordinary. A
+correction is a term if it has a word that isn't ordinary, or a capital the heard form didn't
+have (`clawed code` → `Claude Code`). A capital on the first word of both sides is only the
+start of a sentence.
+
+At first every multi-word phrase was a rare form. That let a one-off garble of ordinary
+words, such as `I don't think` → `I do think`, pass on 2 days. Such a pair now needs the same
+29 clean days as a common word, which in practice means it stays a correction Claude makes in
+context. The check misses irregular forms the list lacks (`paid`), so `pate collection` →
+`paid collection` still counts as rare.
 
 A rare form is unlikely to be meant literally to begin with, and the prior does the work the
 sample can't. A Bayesian version would make that explicit: a beta prior on precision whose

@@ -89,6 +89,16 @@ def test_gate():
     check("gate decisions match the documented demo", got == want, got)
     check("bundled word list loads (jason is a common word, so 2 days aren't enough)",
           next(r for r in plan["rows"] if r["heard"] == "jason")["rare_form"] is False)
+    sys.path.insert(0, S)
+    import gate
+    words = gate.dictionary()
+    rare = {(h, m): gate.is_rare(h, m, words) for h, m in (
+        ("pie torch", "PyTorch"), ("clawed code", "Claude Code"), ("Superbase", "Supabase"),
+        ("I don't think you're being", "I do think you're being"), ("his retention", "history retention"),
+        ("free our non-signed-in users", "free or non-signed-in users"),
+        ("Creed a linear issue", "Create a linear issue"))}
+    check("a phrase of ordinary words is rare only when its correction is a term",
+          list(rare.values()) == [True, True, True, False, False, False, False], rare)
 
 
 def test_file_backend():

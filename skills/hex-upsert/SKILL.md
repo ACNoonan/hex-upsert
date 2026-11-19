@@ -51,6 +51,11 @@ Use `python3`, or `python` where only that exists (Windows). To see which Hex th
    `python3 $S/collect.py --days 60 --out $W/candidates.json`
    Add `--seed FILE` for pairs the user names in chat (a JSON list of `{"heard", "meant"}`).
    If there are no candidates, say so and stop.
+   Then read the list and delete every candidate that isn't a term to teach Hex. The test is
+   whether the user would want `heard` turned into `meant` every time they say those words.
+   A dropped or swapped ordinary word (`don't` → `do`, `our` → `or`), a negation, or a
+   one-off garble of a whole phrase fails it, whatever the tag said. Tell the user which ones
+   you dropped.
 
 2. **List occurrences.**
    `python3 $S/occurrences.py $W/candidates.json --out $W/labels.json`
@@ -92,8 +97,10 @@ Use `python3`, or `python` where only that exists (Windows). To see which Hex th
 ## The gate, in one paragraph
 
 Occurrences count once per calendar day. Any literal day means *in-context only*. A rare form
-(a multi-word phrase, or a single word missing from the bundled `data/words.txt.gz`, the
-public-domain Webster's 2nd list macOS ships as `/usr/share/dict/words`) needs at least 2
-error days and no literal ones. A common single word needs the one-sided 95% lower bound on
+(the heard form has a word missing from the bundled `data/words.txt.gz`, the public-domain
+Webster's 2nd list macOS ships as `/usr/share/dict/words`, or it's a phrase of ordinary words
+whose correction is a term, like `pie torch` → `PyTorch`) needs at least 2 error days and no
+literal ones. A common form (a single dictionary word, or a phrase of ordinary words corrected
+to ordinary words, like `his retention` → `history retention`) needs the one-sided 95% lower bound on
 precision to reach 0.9. With every day an error, that bound is 0.05^(1/n), so it needs 29 clean
 days. The derivation is in `docs/gate.md` in the repo.

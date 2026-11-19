@@ -6,9 +6,11 @@ the share of occurrences of the heard form that are mishearings.
 
 Rules (see docs/gate.md for the derivation):
   - any occurrence labelled "literal"          -> in-context only (a replacement would corrupt it)
-  - rare form (not a dictionary word, or a multi-word phrase), errors >= --min-rare, no literal
-                                               -> replace
-  - common single word, no literal, lower bound p_l >= --target
+  - rare form, errors >= --min-rare, no literal -> replace
+      a rare form has a word the dictionary doesn't know, or is a phrase of ordinary words
+      whose correction is a term (see is_rare)
+  - common form (a dictionary word, or a phrase of ordinary words corrected to ordinary
+    words), no literal, lower bound p_l >= --target
                                                -> replace
   - otherwise                                  -> not enough evidence
 p_l is the one-sided Clopper-Pearson lower bound; with no failures it is alpha**(1/n).
@@ -33,6 +35,49 @@ def dictionary():
     count as rare and pass on 2 days instead of 29."""
     with gzip.open(WORDS, "rt", encoding="utf-8") as f:
         return {w.strip().lower() for w in f}
+
+
+SUFFIXES = ("n't", "'re", "'ve", "'ll", "'s", "'d", "'m", "ies", "ing", "es", "ed", "s", "d")
+
+
+def known(token, words):
+    """An ordinary word: in the dictionary as it stands, or once a contraction or a regular
+    ending is removed. Webster's 2nd lists few inflected forms ('users', 'don't')."""
+    t = token.lower().replace("’", "'").strip(".,;:!?\"()")
+    if not t or t in words:
+        return True
+    if "-" in t:  # 'non-signed-in' is ordinary if each part is
+        return all(known(part, words) for part in t.split("-"))
+    for suf in SUFFIXES:
+        if t.endswith(suf) and len(t) > len(suf) + 1:
+            stem = t[: -len(suf)]
+            if stem in words or stem + "e" in words or (suf == "ies" and stem + "y" in words):
+                return True
+    return False
+
+
+def is_term(heard, meant, words):
+    """The correction names something: it has a word the dictionary doesn't know ('PyTorch'),
+    or a capital the heard form didn't have ('clawed code' -> 'Claude Code'). A capital on the
+    first word of both sides is just the start of a sentence."""
+    h, m = heard.split(), meant.split()
+    if any(not known(t, words) for t in m):
+        return True
+    for i, t in enumerate(m):
+        if any(ch.isupper() for ch in t) and (i > 0 or not (h and h[0][:1].isupper())) and t != "I":
+            return True
+    return False
+
+
+def is_rare(heard, meant, words):
+    """Unlikely to be said literally, so 2 clean days are enough. Either the heard form has a
+    word the dictionary doesn't know, or it's a phrase of ordinary words corrected to a term.
+    A phrase of ordinary words corrected to ordinary words ('I don't think' -> 'I do think')
+    is a one-off garble as far as the gate can tell, and takes the common-word tier."""
+    tokens = heard.split()
+    if any(not known(t, words) for t in tokens):
+        return True
+    return len(tokens) > 1 and is_term(heard, meant, words)
 
 
 def binom_sf(k, n, p):
@@ -99,8 +144,7 @@ def main():
         n_err = sum(v == "error" for v in days.values())
         n_lit = sum(v == "literal" for v in days.values())
         n = n_err + n_lit
-        tokens = c["heard"].split()
-        rare = len(tokens) > 1 or tokens[0].lower() not in words
+        rare = is_rare(c["heard"], c["meant"], words)
         p_l = lower_bound(n_err, n, a.alpha)
 
         if n_lit:
