@@ -182,10 +182,12 @@ How the gate decides is in [`docs/gate.md`](docs/gate.md).
 
 Aggregate numbers from one person's data. The raw data stays private.
 
-- **The tag rule** (12 synthetic prompts, twice each, through headless Claude Code): the first
-  rule tagged all 5 ordinary-word garbles in 10 of 10 runs. The current rule tagged them in 0
-  of 10 and still tagged 9 of 10 real terms. `tests/tag_rule_eval.py` re-runs a 42-prompt
-  version.
+- **The tag rule** (`tests/tag_rule_eval.py`, 42 synthetic prompts through headless Claude
+  Code, 2026-11-19). The current rule tagged a real term in 32 of 32 runs and a non-term in 2
+  of 37. Both of those were `wait decay` → `weight decay`, a term of art made of ordinary
+  words, which the gate holds to 29 clean days anyway. The first rule tagged a non-term in 12
+  of 19 runs: every negation, homophone and truncation it noticed. 16 of 126 calls timed out
+  and are left out, so 4 non-term cases have no run under the current rule.
 - **Repeats** (2026-11-19, 60 days of logs, sessions about this plugin left out): 7 terms, 24
   corrections by Claude, 14 sessions, 15 spellings, about 400 tokens of correction notes.
 - **First week of replacements** (`stats`): in ISO week 46, with no replacements, 18
