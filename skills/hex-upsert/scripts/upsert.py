@@ -5,8 +5,9 @@ Dry run by default: prints what would change. --apply writes it.
 
   replacements: upserted into dictation_processing.default_mode.replacements by matched_phrase
                 (case-insensitive); existing entries with a different output are reported, not changed
-  --hints:      Hex 3: added to the shared vocabulary (`hex vocabulary add`), with each pair's heard
-                form as a "sounds like" spelling. Hex 2: merged into transcription.recognition_hints.
+  --vocabulary: Hex 3: each proposed term is added to the shared vocabulary (`hex vocabulary add`),
+                with the heard forms the gate marked safe as "sounds like" spellings. Hex 2:
+                merged into transcription.recognition_hints. --hints is the old name.
 
 Hex 3 (macOS, Linux, Windows): the change goes through `hex settings apply`, which validates it
 and saves it live, or writes settings.json itself when Hex is stopped. Hex stays open. The old
@@ -84,6 +85,8 @@ def merge(mode, plan):
 
 def hint_spellings(plan):
     """term -> the heard forms it was misheard as, for Hex 3's "sounds like" column."""
+    if "vocabulary" in plan:  # the gate already picked the spellings that are safe to give Hex
+        return {v["term"]: v.get("sounds_like", []) for v in plan["vocabulary"]}
     out = {}
     for h in plan.get("hints", []):
         out[h] = sorted({r["heard"] for r in plan.get("rows", []) if r.get("meant") == h and r.get("heard")})
@@ -166,7 +169,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("plan")
     ap.add_argument("--apply", action="store_true")
-    ap.add_argument("--hints", action="store_true", help="also add proposed terms (vocabulary or recognition hints)")
+    ap.add_argument("--vocabulary", "--hints", dest="hints", action="store_true",
+                    help="also add the proposed terms (Hex 3 vocabulary, Hex 2 recognition hints)")
     a = ap.parse_args()
     plan = load_json(a.plan)
     gen = "Hex 3" if BACKEND == "cli" else "Hex 2"

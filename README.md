@@ -12,8 +12,19 @@ mines those corrections and proposes the ones that are safe to apply to every tr
 
 A Hex replacement is a literal, context-free find-and-replace. A naive rule like `sequel → SQL`
 would also rewrite every real "sequel". So hex-upsert only promotes a pair when the misheard form
-is almost never meant literally, using a zero-failure lower confidence bound on precision. Context
-dependent errors stay with Claude.
+is almost never meant literally. It sorts each pair into one of five types and asks each type
+for the evidence it needs:
+
+| Type | Example | Becomes a replacement |
+|---|---|---|
+| The heard form isn't a word | `Superbase` → `Supabase` | after 2 days of evidence for the term |
+| A term came out as ordinary words | `clawed code` → `Claude Code` | after 2 days if it's a phrase, 29 clean days if it's one word (`sequel` → `SQL`) |
+| Right words, wrong case or spacing | `Agent Mine` → `agentmine` | the same |
+| An ordinary word for an ordinary word | `air` → `error` | after 29 clean days, so in practice it stays with Claude |
+| Words dropped, added or cut short | `don't` → `do` | never |
+
+The 29 days come from a zero-failure lower confidence bound on precision. Context dependent
+errors stay with Claude.
 
 ## How it fits with Hex's own features
 
@@ -22,10 +33,11 @@ another. Vocabulary holds a name plus the "sounds like" spellings a transcript s
 Both rely on you to notice the mishearing and type it in, and neither tells you whether a rule
 is safe to apply everywhere.
 
-hex-upsert does those two parts. It finds the pairs in the corrections Claude already made,
-checks each one against your own Hex history, and writes the safe ones to Global replacements.
-If you ask, it also adds the intended word to Vocabulary, with the misheard forms as its "sounds
-like" spellings. On Parakeet models, Hex uses Vocabulary while transcribing only with Labs ›
+hex-upsert does those two parts. It finds the pairs in the corrections Claude already made and
+checks each one against your own Hex history. For a name or term Hex doesn't know, it proposes
+a Vocabulary entry first, with the safe misheard forms as its "sounds like" spellings: one
+entry covers every way Hex mangles the term. It writes the safe pairs to Global replacements as
+the backstop. On Parakeet models, Hex uses Vocabulary while transcribing only with Labs ›
 Vocabulary help on.
 
 ## Install
@@ -57,7 +69,7 @@ That's all the setup the default mode needs:
 
 ## What it's been tested on
 
-**v0.3, early.** It works with Hex 3 on macOS, Linux and Windows, and with Hex 2.3.1 on macOS.
+**v0.4, early.** It works with Hex 3 on macOS, Linux and Windows, and with Hex 2.3.1 on macOS.
 
 | | Tested how |
 |---|---|

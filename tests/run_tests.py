@@ -87,18 +87,49 @@ def test_gate():
     want = {"pie torch": "replace", "sequel": "in-context only", "verse cell": "not enough evidence",
             "jason": "not enough evidence", "cloud code": "already in Hex"}
     check("gate decisions match the documented demo", got == want, got)
-    check("bundled word list loads (jason is a common word, so 2 days aren't enough)",
-          next(r for r in plan["rows"] if r["heard"] == "jason")["rare_form"] is False)
+    jason = next(r for r in plan["rows"] if r["heard"] == "jason")
+    check("bundled word list loads (jason is an ordinary word, so 2 days aren't enough)",
+          (jason["type"], jason["evidence"]) == ("term-as-words", "bound"), jason)
+    check("vocabulary is proposed per target, without a spelling that has a literal use",
+          {v["term"]: v["sounds_like"] for v in plan["vocabulary"]} ==
+          {"PyTorch": ["pie torch"], "Vercel": ["verse cell"], "SQL": [], "JSON": []}, plan["vocabulary"])
+
     sys.path.insert(0, S)
     import gate
     words = gate.dictionary()
-    rare = {(h, m): gate.is_rare(h, m, words) for h, m in (
-        ("pie torch", "PyTorch"), ("clawed code", "Claude Code"), ("Superbase", "Supabase"),
-        ("I don't think you're being", "I do think you're being"), ("his retention", "history retention"),
-        ("free our non-signed-in users", "free or non-signed-in users"),
-        ("Creed a linear issue", "Create a linear issue"))}
-    check("a phrase of ordinary words is rare only when its correction is a term",
-          list(rare.values()) == [True, True, True, False, False, False, False], rare)
+    want = {("Superbase", "Supabase"): ("non-word", "term"),
+            ("pie torch", "PyTorch"): ("term-as-words", "term"),
+            ("clawed code", "Claude Code"): ("term-as-words", "term"),
+            ("sequel", "SQL"): ("term-as-words", "bound"),
+            ("spit", "SPIT"): ("written-form", "bound"),
+            ("Agent Mine", "agentmine"): ("written-form", "term"),
+            ("air", "error"): ("word-swap", "bound"),
+            ("free our non-signed-in users", "free or non-signed-in users"): ("word-swap", "bound"),
+            ("Creed a linear issue", "Create a linear issue"): ("word-swap", "bound"),
+            ("I don't think you're being", "I do think you're being"): ("dropped-word", "never"),
+            ("his retention", "history retention"): ("dropped-word", "never"),
+            ("I think", "I do think"): ("dropped-word", "never")}
+    got = {k: gate.classify(*k, words)[:2] for k in want}
+    check("each pair is sorted into its type", got == want, {k: v for k, v in got.items() if v != want[k]})
+    check("modern words are ordinary (website, email, okay, paid, don't)",
+          all(gate.known(w, words) for w in ("website", "email", "okay", "paid", "don't")))
+
+    # evidence is pooled per target: two spellings of Vercel on two days pass together, a form
+    # that isn't spelled like its target doesn't share, and a dropped word never passes
+    day = lambda n: (1793710800 + n * 86400) * 1000  # noqa: E731
+    pairs = [("Verselle", "Vercel", [0]), ("verse cell", "Vercel", [1]), ("relu", "Vercel", [2]),
+             ("I don't think", "I do think", [0, 1, 2])]
+    cand = os.path.join(tmp, "pool-candidates.json")
+    labels = os.path.join(tmp, "pool-labels.json")
+    out = os.path.join(tmp, "pool-plan.json")
+    save(cand, {"candidates": [{"heard": h, "meant": m, "notes": 1} for h, m, _ in pairs]})
+    save(labels, {"occurrences": [{"id": f"{h}|{d}", "heard": h, "meant": m, "timestamp_ms": day(d), "label": "error"}
+                                  for h, m, ds in pairs for d in ds]})
+    run("gate.py", cand, labels, "--out", out, env=env)
+    got = {r["heard"]: r["decision"] for r in load(out)["rows"]}
+    check("evidence pools across spellings of one target, and only those", got == {
+        "Verselle": "replace", "verse cell": "replace", "relu": "not enough evidence",
+        "I don't think": "in-context only"}, got)
 
 
 def test_file_backend():
@@ -133,7 +164,7 @@ def test_cli_backend(stopped):
 def test_vocabulary():
     tmp, env = setup("vocab", HEX_UPSERT_BACKEND="cli", HEX_CLI=FAKE)
     plan = pipeline(tmp, env)
-    out = run("upsert.py", plan, "--apply", "--hints", env=env).stdout
+    out = run("upsert.py", plan, "--apply", "--vocabulary", env=env).stdout
     vocab = load(os.path.join(tmp, "hex", "settings.json")).get("vocabulary", [])
     terms = {v["term"]: v.get("sounds_like", []) for v in vocab}
     check("Hex 3 --hints adds vocabulary with sounds-like spellings",

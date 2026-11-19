@@ -72,35 +72,45 @@ Use `python3`, or `python` where only that exists (Windows). To see which Hex th
 
 4. **Gate.**
    `python3 $S/gate.py $W/candidates.json $W/labels.json --out $W/plan.json`
-   It prints one row per pair: error days, literal days, the lower bound p_l and a decision.
+   It prints the proposed vocabulary, then one row per pair: its type, its error days, its
+   target's error days, literal days, the lower bound p_l and a decision.
+   Check the types by eye. The gate sorts pairs by rule, and a pair in the wrong type gets the
+   wrong evidence rule. If one is wrong, say so in the report and leave that pair out.
    Then run `python3 $S/reviewed.py $W/labels.json`, so the weekly session note only comes
    back when there's new evidence.
 
-5. **Report to the user.** Use three buckets: *safe to replace*, *in-context only* (a literal use
-   exists, so Claude keeps fixing it in context) and *not enough evidence*. Give the counts
-   for each pair. Show any proposed vocabulary terms (Hex 3) or recognition hints (Hex 2)
-   separately.
+5. **Report to the user.** Lead with vocabulary: the terms to teach Hex, each with its "sounds
+   like" spellings. Drop any term that is really an ordinary word (`Rap` from `rep God`). Then
+   the replacements, in three buckets: *safe to replace*, *in-context only* (a literal use
+   exists, or words were dropped, so Claude keeps fixing it in context) and *not enough
+   evidence*. Give the type and the counts for each pair.
 
 6. **Upsert, only on the user's yes.**
-   `python3 $S/upsert.py $W/plan.json` (dry run), then show the diff. After they say yes:
-   - **Hex 3:** `python3 $S/upsert.py $W/plan.json --apply`. It goes through Hex's own
+   `python3 $S/upsert.py $W/plan.json --vocabulary` (dry run), then show the diff. On Hex 2
+   leave `--vocabulary` off unless the user asks for recognition hints. After they say yes:
+   - **Hex 3:** `python3 $S/upsert.py $W/plan.json --vocabulary --apply` (drop `--vocabulary`
+     if they only want replacements). It goes through Hex's own
      `hex settings apply`, which validates and applies the change live. Hex stays open. The
      old Global mode is saved in `$STATE/backups/`, and `hex settings apply <that file>` undoes it.
-     `--hints` adds the proposed terms to Hex's vocabulary, with the heard forms as "sounds
-     like" spellings. Transcription uses them only with Labs › Vocabulary help on.
+     `--vocabulary` adds the proposed terms to Hex's vocabulary, with the heard forms the gate
+     marked safe as "sounds like" spellings. Transcription uses them only with Labs ›
+     Vocabulary help on. To leave a term out, delete it from `vocabulary` in the plan first.
    - **Hex 2:** quit Hex first (macOS: `osascript -e 'tell application "Hex" to quit'`,
      telling them first), then run the same command. The script refuses while Hex is running,
      backs up `settings.json`, writes, relaunches Hex and restores the backup if Hex won't
-     start. `--hints` writes recognition hints, and the script refuses them on Parakeet
+     start. `--vocabulary` writes recognition hints, and the script refuses them on Parakeet
      models: Hex 2 won't even launch with hints set on a model that doesn't support them.
 
 ## The gate, in one paragraph
 
-Occurrences count once per calendar day. Any literal day means *in-context only*. A rare form
-(the heard form has a word missing from the bundled `data/words.txt.gz`, the public-domain
-Webster's 2nd list macOS ships as `/usr/share/dict/words`, or it's a phrase of ordinary words
-whose correction is a term, like `pie torch` → `PyTorch`) needs at least 2 error days and no
-literal ones. A common form (a single dictionary word, or a phrase of ordinary words corrected
-to ordinary words, like `his retention` → `history retention`) needs the one-sided 95% lower bound on
-precision to reach 0.9. With every day an error, that bound is 0.05^(1/n), so it needs 29 clean
-days. The derivation is in `docs/gate.md` in the repo.
+Occurrences count once per calendar day. Any literal day means *in-context only*. The gate sorts
+each pair into a type and the type picks the evidence rule. A **non-word** (`Superbase` →
+`Supabase`), and a **term-as-words** or **written-form** pair whose heard form is a phrase
+(`clawed code` → `Claude Code`, `Agent Mine` → `agentmine`), needs 1 error day of its own and 2
+across every heard form of the same target. A **word-swap** (`air` → `error`), and a
+term-as-words or written-form pair whose heard form is one ordinary word (`sequel` → `SQL`,
+`spit` → `SPIT`), needs the one-sided 95% lower bound on precision to reach 0.9. With every day
+an error that bound is 0.05^(1/n), so it needs 29 clean days. A **dropped-word** pair (`don't` →
+`do`, `his` → `history`) never becomes a replacement. "Ordinary" means said at least once per
+million words in the bundled subtitle frequency list, `data/words.txt.gz`. The derivation is in
+`docs/gate.md` in the repo.
