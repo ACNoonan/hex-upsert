@@ -2,7 +2,9 @@
 """SessionStart hook for the hex-upsert plugin. Whatever it prints goes into Claude's context.
 
 1. The tag rule. Claude only writes [heard: "X" → meant: "Y"] tags if told to, so this adds
-   the rule to every session. It's skipped if ~/.claude/CLAUDE.md already carries it.
+   the rule to every session. The rule has a version. It's skipped only if ~/.claude/CLAUDE.md
+   carries the marker for this version ("hex-upsert-rule: v2"), so a copy of an older rule in
+   CLAUDE.md never holds a session on the old wording.
 2. A weekly nudge, on fresh startups only. Once every 7 days it runs the cheap, read-only steps
    (collect + occurrences, about 2 s) and tells Claude to offer /hex-upsert when some pair has
    unreviewed occurrences and shows up on 2+ days in total, the least any replacement needs.
@@ -28,13 +30,17 @@ def scheduled():
     """The weekly job is installed: schedule.sh writes <state>/scheduled; older installs only have the plist."""
     return os.path.exists(os.path.join(STATE, "scheduled")) or os.path.exists(PLIST)
 
+RULE_VERSION = "v2"
+MARKER = f"hex-upsert-rule: {RULE_VERSION}"
+SUPERSEDES = " This rule replaces any older instruction about [heard: …] tags."
+
 RULE = """hex-upsert: the user dictates through Hex, a local speech-to-text app, so a prompt can contain words Hex misheard. Read for the intended meaning as you normally would. Separately, a few of those mishearings are worth teaching to Hex, and you nominate one by writing the tag [heard: "<exact words in the prompt>" → meant: "<intended words>"]. The hex-upsert skill mines these tags into Hex replacements, and a Hex replacement is a find-and-replace with no context: it rewrites the heard words in every future transcript. So the test for a tag is whether the user would want "heard" turned into "meant" every time they say those words, in any sentence. That is usually a specific term Hex doesn't know (a name, a product, a library, an acronym, a piece of jargon) that came out as sound-alike words, such as "pie torch" for PyTorch or "verse cell" for Vercel. Most corrections fail the test and get no tag, even though you still make them and say what you assumed: a dropped, added or swapped ordinary word ("don't" for "do", "his" for "history", "our" for "or"), a negation or grammar slip, an ordinary word misheard as another ordinary word once, a typed typo, and anything you worked out from what this sentence must mean. Tag only the misheard term itself and leave the words around it out of the tag. Write a tag once per pair per turn. If you're unsure, don't write one."""
 
 
 def has_rule():
     p = os.path.join(os.path.expanduser("~"), ".claude", "CLAUDE.md")
     try:
-        return "[heard:" in read_text(p)
+        return MARKER in read_text(p)
     except OSError:
         return False
 
@@ -94,7 +100,7 @@ def main():
         return
     out = []
     if not has_rule():
-        out.append(RULE)
+        out.append(RULE + SUPERSEDES)
     if event.get("source", "startup") == "startup":
         try:
             msg = nudge()

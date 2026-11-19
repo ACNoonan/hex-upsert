@@ -1,0 +1,212 @@
+[
+ {
+  "id": "pytorch",
+  "prompt": "Can you check whether pie torch is pinned in the requirements file? Just tell me how you'd check.",
+  "want": "tag"
+ },
+ {
+  "id": "vercel",
+  "prompt": "What's the quickest way to deploy a preview to verse cell and get a shareable link?",
+  "want": "tag"
+ },
+ {
+  "id": "supabase",
+  "prompt": "I want to move the auth tables over to Superbase this week. What should I watch out for?",
+  "want": "tag"
+ },
+ {
+  "id": "claude-code",
+  "prompt": "How do I run my test suite from inside clawed code without leaving the terminal?",
+  "want": "tag"
+ },
+ {
+  "id": "kubernetes",
+  "prompt": "Our pods keep restarting in cooper netties. What are the first three things to check?",
+  "want": "tag"
+ },
+ {
+  "id": "postgres",
+  "prompt": "Is it worth adding an index in post gress for a table with fifty thousand rows? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "tailwind",
+  "prompt": "How do I center a div with tail wind CSS? One line.",
+  "want": "tag"
+ },
+ {
+  "id": "nextjs",
+  "prompt": "Should I use the app router or the pages router in next jay ess for a new project? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "huggingface",
+  "prompt": "What's the simplest way to download a model from hugging phase from the command line?",
+  "want": "tag"
+ },
+ {
+  "id": "numpy",
+  "prompt": "How do I reverse an array in num pie? One line.",
+  "want": "tag"
+ },
+ {
+  "id": "github-actions",
+  "prompt": "Why would a get hub actions workflow be skipped on a pull request from a fork? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "openrouter",
+  "prompt": "Does open rowter let me set a spending cap per key? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "fastapi",
+  "prompt": "How do I add a health check route in fast a p i? Short answer.",
+  "want": "tag"
+ },
+ {
+  "id": "terraform",
+  "prompt": "What does terra form plan do that apply doesn't? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "redis",
+  "prompt": "Is red iss a reasonable place to keep session tokens? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "llama",
+  "prompt": "Can I run a seven billion parameter model in oh llama on a laptop with sixteen gigs? One sentence.",
+  "want": "tag"
+ },
+ {
+  "id": "negation",
+  "prompt": "I'm keeping the title. I feel like it's a good addition to what Kish was doing. I don't think you're being a little bit too generous to Kish, and I found that out, so stop adding concessions to him. Reply in two sentences.",
+  "want": "none"
+ },
+ {
+  "id": "negation-2",
+  "prompt": "The tests are failing on main, so I do want you to push yet. Wait until I say so. Reply in one sentence.",
+  "want": "none"
+ },
+ {
+  "id": "truncation",
+  "prompt": "Should I set the app's his retention to thirty days or forever so we have more transcripts to check? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "truncation-2",
+  "prompt": "Bump the retry count to three and tell me what the back value should start at for exponential back. One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "or-our",
+  "prompt": "We should show the upgrade banner to free our non-signed-in users only. Does that sound reasonable? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "creed",
+  "prompt": "Creed a short checklist for filing a linear issue about a login bug.",
+  "want": "none"
+ },
+ {
+  "id": "paid",
+  "prompt": "This is a pate collection, so only subscribers should see it. What's the simplest way to gate it? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "their-there",
+  "prompt": "Put the helper functions over their in the utils file and tell me what to name it. One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "to-too",
+  "prompt": "The response is to slow when the cache is cold. What's the first thing to measure? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "then-than",
+  "prompt": "Is a hash map faster then a sorted list for lookups? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "air-error",
+  "prompt": "I keep getting an air when I run the build, something about a missing module. What should I check first? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "cell-stale",
+  "prompt": "Fix the cell references in the README, the ones pointing at files we deleted last week. Tell me how you'd find them.",
+  "want": "none"
+ },
+ {
+  "id": "wait-weight",
+  "prompt": "What's a reasonable wait decay value for fine tuning a small transformer? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "write-right",
+  "prompt": "Is it write to store timestamps in UTC and convert on display? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "dropped-word",
+  "prompt": "Please the function to parse_config and tell me which callers to update, in one sentence.",
+  "want": "none"
+ },
+ {
+  "id": "dropped-not",
+  "prompt": "I want this change to affect the public API, so keep the old signature working. One sentence on how.",
+  "want": "none"
+ },
+ {
+  "id": "added-word",
+  "prompt": "Can you can you tell me the difference between a mutex and a semaphore in one sentence?",
+  "want": "none"
+ },
+ {
+  "id": "grammar",
+  "prompt": "Me and the team was thinking we should migrate the cron jobs. Is a queue a better fit? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "typo",
+  "prompt": "pleaes rename teh function to parse_config and tell me what callers to update, in one sentence",
+  "want": "none"
+ },
+ {
+  "id": "typo-2",
+  "prompt": "waht is teh difference bewteen a process and a thread, one sentence",
+  "want": "none"
+ },
+ {
+  "id": "clean",
+  "prompt": "Rename the function to parse_config and tell me in one sentence what else I should update.",
+  "want": "none"
+ },
+ {
+  "id": "clean-2",
+  "prompt": "What's the difference between a left join and an inner join? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "clean-term",
+  "prompt": "Is PyTorch or JAX a better fit for a small research project? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "real-word",
+  "prompt": "Add a torch icon to the dark mode toggle. What size should it be? One sentence.",
+  "want": "none"
+ },
+ {
+  "id": "json",
+  "prompt": "Write me a one-liner that parses a response as jason and prints its keys.",
+  "want": "either"
+ },
+ {
+  "id": "sql",
+  "prompt": "Write the sequel query that counts users by signup month.",
+  "want": "either"
+ }
+]

@@ -1,19 +1,67 @@
 # hex-upsert
 
 hex-upsert is a Claude Code plugin for [Hex](https://github.com/anomalyco/hex) dictation. It
-turns the mishearings Claude already corrects into Hex replacements, and only the ones that are
-safe in every sentence.
+turns the mishearings Claude already corrects into Hex replacements and vocabulary, and only
+the ones that are safe in every sentence.
+
+## Install
+
+You need [Hex](https://anoma.ly/hex), Claude Code and Python 3.9 or later on your PATH. In
+Claude Code:
+
+```
+/plugin marketplace add ACNoonan/hex-upsert
+/plugin install hex-upsert@hex-upsert
+```
+
+Then run `/hex-upsert:hex-upsert`. The first run checks your setup and scans the Hex history
+you already have for words Hex spelled as non-words, so there's something to review on day one.
+
+After that it runs itself:
+
+- **Every session**, a `SessionStart` hook tells Claude to tag a misheard term when it fixes
+  one, as `[heard: "X" → meant: "Y"]`. It tags only a term worth teaching Hex, one you'd want
+  replaced every time you say it (`pie torch` → `PyTorch`). A dropped or swapped ordinary word
+  (`don't` → `do`) gets fixed in context and no tag. You don't edit your `CLAUDE.md`.
+- **Once a week**, on your first Claude Code start, the hook runs the cheap read-only steps
+  (about 2 seconds, no model call). If a misheard pair has new evidence on 2 or more days,
+  Claude mentions it once and offers to run the skill.
+- **The skill** labels every occurrence in your session, gates it and shows you the result. It
+  changes Hex only after you say yes.
+
+| Say | What happens |
+|---|---|
+| `/hex-upsert:hex-upsert` | Review: what Hex keeps mishearing, and what's safe to fix |
+| `/hex-upsert:hex-upsert doctor` | Setup check: Hex, history retention, vocabulary help, the tag rule |
+| `/hex-upsert:hex-upsert undo` | Take back the most recent change, and only that |
+| `/hex-upsert:hex-upsert stats` | Per week: mishearings a replacement fixed, and ones that still got through |
+| `/hex-upsert:hex-upsert schedule` | Optional weekly unattended run |
 
 ## Why it exists
 
 Hex transcribes speech into Claude Code. When a word comes out wrong, Claude usually reads the
-intended meaning and says what it assumed. That correction is lost after the session. hex-upsert
-mines those corrections and proposes the ones that are safe to apply to every transcript.
+intended meaning and says what it assumed. That correction dies with the session, so the next
+session makes it again.
 
-A Hex replacement is a literal, context-free find-and-replace. A naive rule like `sequel → SQL`
-would also rewrite every real "sequel". So hex-upsert only promotes a pair when the misheard form
-is almost never meant literally. It sorts each pair into one of five types and asks each type
-for the evidence it needs:
+In my own logs (60 days, sessions about this plugin left out), 7 names and terms account for
+24 of those corrections across 14 sessions, under 15 different spellings. Hex's history shows
+why: it wrote one colleague's name wrong 8 times out of 8, and got "Vercel" and "Supabase"
+right 0 times. In the last week with no replacements, 18 dictated mishearings of the terms
+now covered reached Claude. In the week the replacements went in, Hex fixed 12 before Claude
+saw them.
+
+The cost isn't tokens. The 24 correction notes come to about 400 tokens. The cost is the
+correction Claude doesn't make. A mishearing that still reads as a sensible sentence passes
+without a note: in one session Hex turned "I do think" into "I don't think" and reversed the
+instruction. Claude caught that one from context. Nothing guarantees it catches the next, and
+a wrong name in a commit message, an email or a search query doesn't look wrong to anyone but
+you.
+
+So the fix has to happen before the text reaches Claude, in Hex. A Hex replacement is a
+literal, context-free find-and-replace, though, and a naive rule like `sequel → SQL` would also
+rewrite every real "sequel". hex-upsert only promotes a pair when the misheard form is almost
+never meant literally. It sorts each pair into one of five types and asks each type for the
+evidence it needs:
 
 | Type | Example | Becomes a replacement |
 |---|---|---|
@@ -24,7 +72,7 @@ for the evidence it needs:
 | Words dropped, added or cut short | `don't` → `do` | never |
 
 The 29 days come from a zero-failure lower confidence bound on precision. Context dependent
-errors stay with Claude.
+errors stay with Claude. How the gate decides is in [`docs/gate.md`](docs/gate.md).
 
 ## How it fits with Hex's own features
 
@@ -38,38 +86,21 @@ checks each one against your own Hex history. For a name or term Hex doesn't kno
 a Vocabulary entry first, with the safe misheard forms as its "sounds like" spellings: one
 entry covers every way Hex mangles the term. It writes the safe pairs to Global replacements as
 the backstop. On Parakeet models, Hex uses Vocabulary while transcribing only with Labs ›
-Vocabulary help on.
+Vocabulary help on, and the setup check offers to turn it on.
 
-## Install
+## Setup details
 
-You need [Hex](https://anoma.ly/hex), Claude Code and Python 3.9 or later on your PATH. In Claude Code:
-
-```
-/plugin marketplace add ACNoonan/hex-upsert
-/plugin install hex-upsert@hex-upsert
-```
-
-Set Hex's history retention to 30 days or Forever in its settings (Hex 3 keeps 7 days by
-default). The gate checks every pair against your own transcripts, so it needs history to work
-with.
-
-That's all the setup the default mode needs:
-
-- **Every session**, a `SessionStart` hook tells Claude to tag the mishearings it fixes, as
-  `[heard: "X" → meant: "Y"]`. It tags only a term worth teaching Hex, one you'd want replaced
-  every time you say it (`pie torch` → `PyTorch`). A dropped or swapped ordinary word
-  (`don't` → `do`) gets fixed in context and no tag. You don't edit your `CLAUDE.md`. If your
-  `CLAUDE.md` already has the rule, the hook skips it.
-- **Once a week**, on your first Claude Code start, the hook runs the cheap read-only steps
-  (about 2 seconds, no model call). If a misheard pair has new evidence on 2 or more days, the
-  least any replacement needs, Claude mentions it once and offers to run the skill.
-- **The skill** (`/hex-upsert:hex-upsert`) labels every occurrence in your session, gates it
-  and shows you the result. It changes Hex only after you say yes. Once you've reviewed a pair,
-  the hook stays quiet about it until new occurrences turn up.
+- **History.** The gate checks every pair against your own transcripts, so Hex has to keep
+  them. Hex 3 keeps 7 days by default. The setup check offers to set it to a month.
+- **The tag rule has a version.** If you keep your own copy of the rule in `CLAUDE.md`, put
+  `hex-upsert-rule: v2` in it and the hook skips its copy. Without that marker the hook adds
+  the current rule, so an old copy never holds you on old wording.
+- **Undo.** Every apply is recorded. `undo` removes the replacements and vocabulary terms the
+  most recent apply added, and leaves anything you changed since.
 
 ## What it's been tested on
 
-**v0.4, early.** It works with Hex 3 on macOS, Linux and Windows, and with Hex 2.3.1 on macOS.
+**v0.5, early.** It works with Hex 3 on macOS, Linux and Windows, and with Hex 2.3.1 on macOS.
 
 | | Tested how |
 |---|---|
@@ -147,17 +178,25 @@ This runs the whole pipeline on synthetic data in a temp folder. It touches noth
 
 How the gate decides is in [`docs/gate.md`](docs/gate.md).
 
-## First mining run (2026-11-15)
+## Results so far
 
-Aggregate numbers only. The raw data stays private.
+Aggregate numbers from one person's data. The raw data stays private.
 
-- 41 correction notes found in Claude Code logs (29 mishearings, 12 typed typos), from 98 regex
-  candidates, all hand-checked.
-- Counting corrections per occurrence badly understates errors: Claude flags a mishearing once,
-  not every time. One name scored 0.016 on that ratio and its hand-checked error rate was 66 of 66.
-- Three pairs were safe on a hand read of every Hex occurrence (24/24, 32/32 and 66/66 errors).
+- **The tag rule** (12 synthetic prompts, twice each, through headless Claude Code): the first
+  rule tagged all 5 ordinary-word garbles in 10 of 10 runs. The current rule tagged them in 0
+  of 10 and still tagged 9 of 10 real terms. `tests/tag_rule_eval.py` re-runs a 42-prompt
+  version.
+- **Repeats** (2026-11-19, 60 days of logs, sessions about this plugin left out): 7 terms, 24
+  corrections by Claude, 14 sessions, 15 spellings, about 400 tokens of correction notes.
+- **First week of replacements** (`stats`): in ISO week 46, with no replacements, 18
+  mishearings of the terms now covered reached Claude and 0 were fixed. In week 47, when the
+  replacements went in, 12 were fixed in Hex and 7 got through.
+- **First mining run** (2026-11-15): 41 correction notes in Claude Code logs (29 mishearings,
+  12 typed typos), from 98 regex candidates, all hand-checked. Counting corrections per
+  occurrence badly understates errors, because Claude flags a mishearing once, not every time.
+  One name scored 0.016 on that ratio and its hand-checked error rate was 66 of 66.
 
 ## Roadmap
 
-1. Measure word error rate before and after, with Hex's `benchmark-transcription` command.
+1. Re-run `stats` after a month of replacements, on more than one person's data.
 2. Verify Hex 3 and the weekly job on a real Linux and Windows desktop.

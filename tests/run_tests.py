@@ -173,6 +173,56 @@ def test_vocabulary():
     check("vocabulary already present isn't proposed again", "+ vocabulary" not in again, again)
 
 
+def test_undo():
+    for backend, extra in (("file", {}), ("cli", {"HEX_UPSERT_BACKEND": "cli", "HEX_CLI": FAKE})):
+        tmp, env = setup("undo-" + backend, **extra)
+        plan = pipeline(tmp, env)
+        before = replacements(tmp)
+        # the demo's Hex 2 model is Parakeet, which takes no hints
+        run("upsert.py", plan, "--apply", *(["--vocabulary"] if backend == "cli" else []), env=env)
+        p = os.path.join(tmp, "hex", "settings.json")
+        s = load(p)  # a change the user made after the apply must survive the undo
+        s["dictation_processing"]["default_mode"]["replacements"].append({"matched_phrase": "mine", "output": "Mine"})
+        save(p, s)
+        dry = run("upsert.py", "--undo", env=env).stdout
+        check(f"undo dry run lists what the last apply added ({backend})",
+              '- replacement  "pie torch"' in dry and len(replacements(tmp)) == len(before) + 2, dry)
+        out = run("upsert.py", "--undo", "--apply", env=env).stdout
+        after = load(p)
+        check(f"undo removes only what the last apply added ({backend})",
+              replacements(tmp) == before + [{"matched_phrase": "mine", "output": "Mine"}]
+              and not after.get("vocabulary") and "PyTorch" not in after.get("transcription", {}).get("recognition_hints", ""),
+              out + json.dumps(after)[:400])
+        again = run("upsert.py", "--undo", env=env).stdout
+        check(f"a second undo has nothing to take back ({backend})", "nothing to undo" in again, again)
+
+
+def test_scan_and_doctor():
+    tmp, env = setup("scan", HEX_UPSERT_BACKEND="cli", HEX_CLI=FAKE)
+    p = os.path.join(tmp, "hex", "history.json")
+    h = load(p)
+    h["entries"] += [{"id": 100 + i, "timestamp_ms": 1793710800000 + i * 86400000, "kind": "dictation",
+                      "raw_text": f"move the tables to Superbase before the GPU job, attempt {i}"} for i in range(2)]
+    save(p, h)
+    out = os.path.join(tmp, "scan.json")
+    run("scan.py", "--out", out, env=env)
+    forms = [f["form"] for f in load(out)["forms"]]
+    check("first-run scan ranks a repeated non-word first and skips ordinary words, acronyms and known phrases",
+          forms[0] == "Superbase" and not {"GPU", "tables", "cloud", "pie", "torch"} & set(forms), forms)
+
+    sp = os.path.join(tmp, "hex", "settings.json")
+    s = load(sp)
+    s["history_retention"] = "week"
+    save(sp, s)
+    r = run("doctor.py", env=env).stdout
+    check("doctor flags short retention and the missing plugin, and changes nothing",
+          "fix   history retention" in r and "fix   tag rule" in r and load(sp)["history_retention"] == "week", r)
+    r = run("doctor.py", "--fix", env=env).stdout
+    s = load(sp)
+    check("doctor --fix sets retention and turns vocabulary help on",
+          s["history_retention"] == "month" and s["labs"]["vocabulary_biasing"] is True, r)
+
+
 def test_schema_guard():
     for backend, extra in (("file", {}), ("cli", {"HEX_UPSERT_BACKEND": "cli", "HEX_CLI": FAKE})):
         tmp, env = setup("guard-" + backend, **extra)
@@ -198,6 +248,18 @@ def test_hook():
     tmp, env = setup("hook")
     r = run("session_start.py", env=env, stdin=json.dumps({"source": "startup"}))
     check("hook prints the tag rule for a new user", "[heard:" in r.stdout, r.stdout + r.stderr)
+    md = os.path.join(env["HOME"], ".claude", "CLAUDE.md")
+    os.makedirs(os.path.dirname(md))
+    with open(md, "w", encoding="utf-8") as f:
+        f.write('When you fix a misheard word write [heard: "X" → meant: "Y"].\n')
+    old = run("session_start.py", env=env, stdin=json.dumps({"source": "resume"}))
+    check("an older copy of the rule in CLAUDE.md doesn't suppress the current one",
+          "replaces any older instruction" in old.stdout, old.stdout)
+    with open(md, "a", encoding="utf-8") as f:
+        f.write("<!-- hex-upsert-rule: v2 -->\n")
+    cur = run("session_start.py", env=env, stdin=json.dumps({"source": "resume"}))
+    check("the current rule's marker in CLAUDE.md does", "[heard:" not in cur.stdout, cur.stdout)
+    os.remove(md)
     check("hook nudges when a pair has 2+ days of new evidence", "misheard pair" in r.stdout, r.stdout)
     r2 = run("session_start.py", env=env, stdin=json.dumps({"source": "startup"}))
     check("hook nudges at most once a week", "misheard pair" not in r2.stdout, r2.stdout)
@@ -260,6 +322,8 @@ if __name__ == "__main__":
     test_cli_backend(stopped=False)
     test_cli_backend(stopped=True)
     test_vocabulary()
+    test_undo()
+    test_scan_and_doctor()
     test_schema_guard()
     test_no_cli()
     test_hook()

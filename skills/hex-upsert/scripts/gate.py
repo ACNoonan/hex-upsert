@@ -75,7 +75,7 @@ def known(token, words):
     if "-" in t:  # 'non-signed-in' is ordinary if each part is
         return all(known(part, words) for part in t.split("-"))
     for suf in SUFFIXES:
-        if t.endswith(suf) and len(t) > len(suf) + 1:
+        if t.endswith(suf) and len(t) > len(suf):
             stem = t[: -len(suf)]
             if stem in words or stem + "e" in words or (suf == "ies" and stem + "y" in words):
                 return True

@@ -6,6 +6,10 @@ HEX_APPLICATION_SUPPORT_DIR. FAKE_HEX_STOPPED=1 acts as if Hex isn't running.
   hex settings get <key> --json
   hex settings apply <file|-> --json        works stopped too: writes settings.json directly
   hex vocabulary add <term> [--sounds-like a,b] --json
+  hex vocabulary remove <term> --json
+  hex settings set <key> <value> --json
+  hex labs on|off <feature>
+  hex --version
 """
 import json
 import os
@@ -92,6 +96,26 @@ def main():
             cur["sounds_like"] = sorted(set(cur.get("sounds_like", [])) | set(spell))
         save(s)
         reply({"status": "done", "message": f"Added {term}", "changed": True})
+    if args[:2] == ["vocabulary", "remove"]:
+        s = load()
+        before = len(s.get("vocabulary", []))
+        s["vocabulary"] = [v for v in s.get("vocabulary", []) if v["term"].lower() != args[2].lower()]
+        save(s)
+        reply({"status": "done", "message": f"Removed {args[2]}", "changed": len(s["vocabulary"]) != before})
+    if args[:2] == ["settings", "set"]:
+        s = load()
+        set_path(s, args[2], args[3])
+        save(s)
+        reply({"status": "done", "message": f"Set {args[2]}", "changed": True})
+    if args[:1] == ["labs"] and len(args) == 3 and args[1] in ("on", "off"):
+        s = load()
+        set_path(s, "labs." + args[2].replace("-", "_"), args[1] == "on")
+        save(s)
+        print(f"Turned {args[2]} {args[1]}.")
+        sys.exit(0)
+    if args == ["--version"]:
+        print("hex 3.4.0")
+        sys.exit(0)
     print(f"fake hex: unsupported {args}", file=sys.stderr)
     sys.exit(2)
 

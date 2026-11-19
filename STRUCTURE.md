@@ -27,6 +27,6 @@ live in `.private/`, which is gitignored. Public examples are synthetic.
 | `.claude-plugin/` | Plugin manifest, the single-plugin marketplace and `icon.png` (the listing icon, 1024 px) |
 | `docs/` | Method notes, such as the precision gate, and `icon.svg` (the icon's source) |
 | `examples/` | Synthetic demo data |
-| `tests/` | `run_tests.py` (end to end, any OS) and `fake_hex.py`, a test double of Hex 3's `hex` CLI |
+| `tests/` | `run_tests.py` (end to end, any OS), `fake_hex.py`, a test double of Hex 3's `hex` CLI, and `tag_rule_eval.py` with its cases, a check of the tag rule that calls Claude and so stays out of CI |
 | `.github/workflows/` | CI: the tests on macOS, Linux and Windows |
 | `.private/` | Gitignored. Adam's real mining runs, one dated folder each |

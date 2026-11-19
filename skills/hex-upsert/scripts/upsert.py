@@ -3,6 +3,12 @@
 
 Dry run by default: prints what would change. --apply writes it.
 
+  upsert.py PLAN [--vocabulary] [--apply]   add the plan's replacements (and vocabulary)
+  upsert.py --undo [--apply]                take back the most recent apply: the replacements and
+                                            vocabulary terms it added, and nothing else
+
+Every apply is recorded in <state>/applied/, which is what --undo reads.
+
   replacements: upserted into dictation_processing.default_mode.replacements by matched_phrase
                 (case-insensitive); existing entries with a different output are reported, not changed
   --vocabulary: Hex 3: each proposed term is added to the shared vocabulary (`hex vocabulary add`),
@@ -108,16 +114,19 @@ def apply_cli(mode, added, hints):
         if missing:
             sys.exit(f"Hex accepted the change but {how} doesn't show {missing}. To undo: hex settings apply {backup}")
         print(f"\nsaved through Hex's CLI (checked with {how})\nbackup {backup}  (undo: hex settings apply that file)")
+    done = []
     for term, spellings in hints.items():
         args = ["vocabulary", "add", term] + (["--sounds-like", ",".join(spellings)] if spellings else [])
         try:
             hex_call(*args)
+            done.append(term)
             print(f"vocabulary: added {term}")
         except HexError as e:
             print(f"vocabulary: {term} not added: {e.message} ({e.code})")
     if hints:
         print("note: Hex uses vocabulary for transcription only with Labs › Vocabulary help on "
               "(hex labs on vocabulary-biasing); rewriting and search use it either way.")
+    return done
 
 
 # ---- Hex 2 (legacy, macOS) -----------------------------------------------------------------
@@ -163,18 +172,21 @@ def apply_file(s):
              + ("is running again." if ok else "STILL won't start. Check ~/Library/Application Support/voice-control/logs/process.log"))
 
 
-# ---- main ----------------------------------------------------------------------------------
+# ---- the record of what was applied, and undo -----------------------------------------------
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("plan")
-    ap.add_argument("--apply", action="store_true")
-    ap.add_argument("--vocabulary", "--hints", dest="hints", action="store_true",
-                    help="also add the proposed terms (Hex 3 vocabulary, Hex 2 recognition hints)")
-    a = ap.parse_args()
-    plan = load_json(a.plan)
+APPLIED = os.path.join(STATE, "applied")
+
+
+def record(added, vocabulary, hints):
+    os.makedirs(APPLIED, exist_ok=True)
+    path = os.path.join(APPLIED, f"{time.strftime('%Y%m%d-%H%M%S')}.json")
+    save_json(path, {"backend": BACKEND, "replacements": added, "vocabulary": vocabulary, "hints": hints}, indent=1)
+    print(f"recorded in {path}  (take it back: upsert.py --undo)")
+
+
+def read_settings():
+    """(mode, where it came from, the whole settings dict on Hex 2). Exits on a shape it doesn't know."""
     gen = "Hex 3" if BACKEND == "cli" else "Hex 2"
-
     try:
         if BACKEND == "cli":
             mode, source = current_mode()
@@ -188,6 +200,75 @@ def main():
     if problem:
         sys.exit(f"{gen}: the Global mode from {source} isn't in the shape this tool was built for ({problem}). "
                  f"Nothing was written. Built against Hex {', '.join(TESTED[BACKEND])}; please open an issue.")
+    return mode, source, s
+
+
+def undo(apply):
+    """Take back the most recent apply. A replacement is removed only if it still has the output
+    that apply gave it, so anything the user changed since is left alone."""
+    files = sorted(f for f in os.listdir(APPLIED) if f.endswith(".json")) if os.path.isdir(APPLIED) else []
+    if not files:
+        print("nothing to undo: no apply is recorded")
+        return
+    path = os.path.join(APPLIED, files[-1])
+    j = load_json(path)
+    mode, _, s = read_settings()
+    mine = {(r["matched_phrase"].strip().lower(), r["output"]) for r in j.get("replacements", [])}
+    reps = mode.get("replacements", [])
+    gone = [r for r in reps if (r["matched_phrase"].strip().lower(), r["output"]) in mine]
+    mode["replacements"] = [r for r in reps if r not in gone]
+    terms = j.get("vocabulary", []) if BACKEND == "cli" else []
+    hints = j.get("hints", []) if BACKEND == "file" else []
+    print(f"undoing the apply of {files[-1][:-5]}")
+    for r in gone:
+        print(f'- replacement  "{r["matched_phrase"]}" -> "{r["output"]}"')
+    for t in terms:
+        print(f"- vocabulary   {t}")
+    for h in hints:
+        print(f"- hint         {h}")
+    if not (gone or terms or hints):
+        print("nothing left to take back")
+    if not apply:
+        print("\ndry run. Re-run with --undo --apply" + ("." if BACKEND == "cli" else " after quitting Hex."))
+        return
+    try:
+        if BACKEND == "cli":
+            if gone:
+                hex_call("settings", "apply", "-", stdin=json.dumps({KEY: mode}, ensure_ascii=False))
+            for t in terms:
+                try:
+                    hex_call("vocabulary", "remove", t)
+                except HexError as e:
+                    print(f"vocabulary: {t} not removed: {e.message} ({e.code})")
+        elif gone or hints:
+            tr = s.get("transcription") or {}
+            if hints and isinstance(tr.get("recognition_hints"), str):
+                drop = {h.lower() for h in hints}
+                tr["recognition_hints"] = ", ".join(h.strip() for h in tr["recognition_hints"].split(",")
+                                                    if h.strip() and h.strip().lower() not in drop)
+            apply_file(s)
+    except HexError as e:
+        sys.exit(f"Hex refused the change: {e.message} ({e.code}). Nothing was written.")
+    os.replace(path, path + ".undone")
+    print("undone")
+
+
+# ---- main ----------------------------------------------------------------------------------
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("plan", nargs="?")
+    ap.add_argument("--undo", action="store_true", help="take back the most recent apply")
+    ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--vocabulary", "--hints", dest="hints", action="store_true",
+                    help="also add the proposed terms (Hex 3 vocabulary, Hex 2 recognition hints)")
+    a = ap.parse_args()
+    if a.undo:
+        return undo(a.apply)
+    if not a.plan:
+        ap.error("give a plan file, or --undo")
+    plan = load_json(a.plan)
+    mode, source, s = read_settings()
     if BACKEND == "file" and SYSTEM == "Darwin" and "HEX_APPLICATION_SUPPORT_DIR" not in os.environ:
         v = hex2_version()
         if v not in TESTED["file"]:
@@ -207,7 +288,7 @@ def main():
     elif a.hints:
         model = (s.get("transcription") or {}).get("model") or ""
         if model.startswith("parakeet"):
-            sys.exit(f"model {model!r} does not support recognition hints; Hex 2 would fail to start. Drop --hints.")
+            sys.exit(f"model {model!r} does not support recognition hints; Hex 2 would fail to start. Drop --vocabulary.")
         tr = s.setdefault("transcription", {})
         if not isinstance(tr.get("recognition_hints", ""), str):
             sys.exit("transcription.recognition_hints is not a string. Nothing was written.")
@@ -231,9 +312,11 @@ def main():
         return
     try:
         if BACKEND == "cli":
-            apply_cli(mode, added, hints)
+            vocab = apply_cli(mode, added, hints)
+            record(added, vocab, [])
         else:
             apply_file(s)
+            record(added, [], new_hints)
     except HexError as e:
         sys.exit(f"Hex refused the change: {e.message} ({e.code}). Nothing was written.")
 

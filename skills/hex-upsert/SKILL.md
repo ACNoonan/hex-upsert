@@ -1,7 +1,7 @@
 ---
 name: hex-upsert
-description: Turn the dictation mishearings Claude has corrected into Hex replacements, but only the ones safe to apply to every transcript. Also installs or removes a weekly scheduled run. Use when the user says "/hex-upsert", "update my Hex config", "learn my transcription errors", "what has Hex been mishearing", or when a hex-upsert session note says corrections are ready and the user accepts.
-argument-hint: "[schedule [--auto-apply] | unschedule]"
+description: Turn the dictation mishearings Claude has corrected into Hex replacements and vocabulary, but only the ones safe to apply to every transcript. Also checks the setup, undoes the last change, shows weekly stats, and installs or removes a weekly scheduled run. Use when the user says "/hex-upsert", "update my Hex config", "learn my transcription errors", "what has Hex been mishearing", "undo the Hex changes", "is hex-upsert set up", or when a hex-upsert session note says corrections are ready and the user accepts.
+argument-hint: "[doctor | undo | stats | schedule [--auto-apply] | unschedule]"
 ---
 
 # hex-upsert
@@ -38,19 +38,40 @@ Use `python3`, or `python` where only that exists (Windows). To see which Hex th
   the token. Tell the user to run `sh $S/schedule.sh --store-token` in their own terminal.
 - `unschedule`: run `sh $S/schedule.sh --uninstall` (macOS; it also deletes the Keychain token)
   or `python3 $S/schedule.py --uninstall` (Linux, Windows).
+- `doctor`: run `python3 $S/doctor.py` and show its lines as they are. It changes nothing.
+  If a line says `fix` for history retention or vocabulary help, say what `--fix` would change
+  (history kept for a month; Labs › Vocabulary help on, which changes how Parakeet hears every
+  dictation) and run `python3 $S/doctor.py --fix` only on a yes.
+- `undo`: `python3 $S/upsert.py --undo` shows what the most recent apply added. On a yes, run
+  it with `--undo --apply` (Hex 2: quit Hex first, as in step 6). It removes those replacements
+  and vocabulary terms and nothing else. Run it again to step back one more apply.
+- `stats`: run `python3 $S/stats.py` and show the table: per week, how often a replacement
+  fired, how often a misheard form still got through, and how many tags Claude wrote.
 - No argument: the review below.
 
 ## Review
 
-0. **Pending plan.** If `$STATE/pending.json` exists, a
+0. **First run.** If `$STATE/reviewed.json` doesn't exist, this user has never done a review.
+   Run `python3 $S/doctor.py` first and deal with any `fix` line as under `doctor` above.
+   A new user has few or no tags, so also run the scan:
+   `python3 $S/scan.py --out $W/scan.json`
+   It lists the forms in Hex's history that aren't in the word list, with snippets. Read each
+   one. Most are real words or terms Hex got right (`GitHub`, `backfill`): skip those. For a
+   form that is clearly a mishearing of something you can name from the snippets (`Superbase`
+   in a sentence about database auth), add `{"heard": "Superbase", "meant": "Supabase"}` to
+   `$W/seed.json`. If you can't tell what was meant, ask the user about the few forms that
+   show up on 2 or more days, and skip the rest. Pass the file to step 1 with `--seed`.
+
+0b. **Pending plan.** If `$STATE/pending.json` exists, a
    scheduled run already labelled and gated it. Show its replacements with
    `python3 $S/upsert.py <that file>` (a dry run) and go to step 6. After the user decides
    either way, run `python3 $S/reviewed.py --clear-pending`.
 
 1. **Collect candidates.**
    `python3 $S/collect.py --days 60 --out $W/candidates.json`
-   Add `--seed FILE` for pairs the user names in chat (a JSON list of `{"heard", "meant"}`).
-   If there are no candidates, say so and stop.
+   Add `--seed FILE` for pairs the user names in chat or the first-run scan found (a JSON
+   list of `{"heard", "meant"}`). If there are no candidates, run the scan from step 0 if you
+   haven't. If there are still none, say so and stop.
    Then read the list and delete every candidate that isn't a term to teach Hex. The test is
    whether the user would want `heard` turned into `meant` every time they say those words.
    A dropped or swapped ordinary word (`don't` → `do`, `our` → `or`), a negation, or a
@@ -88,6 +109,7 @@ Use `python3`, or `python` where only that exists (Windows). To see which Hex th
 6. **Upsert, only on the user's yes.**
    `python3 $S/upsert.py $W/plan.json --vocabulary` (dry run), then show the diff. On Hex 2
    leave `--vocabulary` off unless the user asks for recognition hints. After they say yes:
+   Every apply is recorded, and `/hex-upsert undo` takes the most recent one back. Say so.
    - **Hex 3:** `python3 $S/upsert.py $W/plan.json --vocabulary --apply` (drop `--vocabulary`
      if they only want replacements). It goes through Hex's own
      `hex settings apply`, which validates and applies the change live. Hex stays open. The
