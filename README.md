@@ -1,4 +1,12 @@
+<p align="center">
+  <img src=".claude-plugin/icon.png" width="112" alt="hex-upsert icon: a waveform and an up arrow inside a hexagon">
+</p>
+
 # hex-upsert
+
+[![tests](https://github.com/ACNoonan/hex-upsert/actions/workflows/test.yml/badge.svg)](https://github.com/ACNoonan/hex-upsert/actions/workflows/test.yml)
+[![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![Hex 3: macOS, Linux, Windows](https://img.shields.io/badge/Hex%203-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-informational.svg)](#what-its-been-tested-on)
 
 hex-upsert is a Claude Code plugin for [Hex](https://github.com/anomalyco/hex) dictation. It
 turns the mishearings Claude already corrects into Hex replacements and vocabulary, and only
@@ -173,7 +181,21 @@ copy of the scripts, so a plugin update can't break a run halfway.
 ./examples/run_demo.sh
 ```
 
-This runs the whole pipeline on synthetic data in a temp folder. It touches nothing else.
+This runs the whole pipeline on synthetic data in a temp folder. It touches nothing else. The
+gate's table is the part you'd review:
+
+```
+heard        meant        type           err d  tgt d  lit d    p_l  decision
+cloud code   Claude Code                                              already in Hex
+pie torch    PyTorch      term-as-words      3      3      0  0.368  replace
+sequel       SQL          term-as-words      1      1      1  0.025  in-context only
+verse cell   Vercel       term-as-words      1      1      0   0.05  not enough evidence
+jason        JSON         term-as-words      2      2      0  0.224  not enough evidence
+```
+
+`err d` and `lit d` are the days the heard form was a mishearing and the days it was meant
+literally. "sequel" was meant literally once, so it never becomes a replacement.
+
 `python3 tests/run_tests.py` runs the same pipeline against both Hex generations, on any OS.
 
 How the gate decides is in [`docs/gate.md`](docs/gate.md).
@@ -202,3 +224,11 @@ Aggregate numbers from one person's data. The raw data stays private.
 
 1. Re-run `stats` after a month of replacements, on more than one person's data.
 2. Verify Hex 3 and the weekly job on a real Linux and Windows desktop.
+
+## Privacy and affiliation
+
+hex-upsert runs on your computer and has no server or telemetry. What it reads, writes and
+sends is in [`PRIVACY.md`](PRIVACY.md).
+
+It's an independent project. It isn't made or endorsed by Anomaly, who make Hex, or by
+Anthropic. MIT licensed.

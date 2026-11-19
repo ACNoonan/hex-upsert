@@ -1,11 +1,11 @@
 #!/bin/sh
-# End-to-end demo on synthetic data. Touches nothing outside a temp folder.
+# End-to-end demo on synthetic data. Touches nothing outside a temp folder: Hex data, logs and state all point there.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 S="$HERE/../skills/hex-upsert/scripts"
 W=$(mktemp -d)
 cp -R "$HERE/hex" "$W/hex"
-export HEX_APPLICATION_SUPPORT_DIR="$W/hex" CLAUDE_PROJECTS_DIR="$HERE/claude-projects"
+export HEX_APPLICATION_SUPPORT_DIR="$W/hex" CLAUDE_PROJECTS_DIR="$HERE/claude-projects" HEX_UPSERT_STATE="$W/state"
 
 python3 "$S/collect.py" --days 100000 --out "$W/candidates.json"
 python3 "$S/occurrences.py" "$W/candidates.json" --out "$W/labels.json"
