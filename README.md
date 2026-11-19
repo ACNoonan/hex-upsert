@@ -44,8 +44,10 @@ with.
 That's all the setup the default mode needs:
 
 - **Every session**, a `SessionStart` hook tells Claude to tag the mishearings it fixes, as
-  `[heard: "X" → meant: "Y"]`. You don't edit your `CLAUDE.md`. If your `CLAUDE.md` already
-  has the rule, the hook skips it.
+  `[heard: "X" → meant: "Y"]`. It tags only a term worth teaching Hex, one you'd want replaced
+  every time you say it (`pie torch` → `PyTorch`). A dropped or swapped ordinary word
+  (`don't` → `do`) gets fixed in context and no tag. You don't edit your `CLAUDE.md`. If your
+  `CLAUDE.md` already has the rule, the hook skips it.
 - **Once a week**, on your first Claude Code start, the hook runs the cheap read-only steps
   (about 2 seconds, no model call). If a misheard pair has new evidence on 2 or more days, the
   least any replacement needs, Claude mentions it once and offers to run the skill.
