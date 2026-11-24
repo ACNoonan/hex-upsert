@@ -1,7 +1,7 @@
 {
   "name": "hex-upsert",
   "owner": {
-    "name": "Adam Noonan"
+    "name": "Exceedance Technologies LLC"
   },
   "description": "hex-upsert: teach Hex your dictation mishearings from Claude Code's corrections.",
   "plugins": [
